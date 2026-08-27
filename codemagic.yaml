@@ -14,40 +14,26 @@ workflows:
         script: flutter pub get
       - name: Build unsigned iOS
         script: |
-          # 强制禁用所有代码签名
+          # 强制禁用代码签名
+          export CODE_SIGNING_ALLOWED=NO
+          export CODE_SIGNING_REQUIRED=NO
           export CODE_SIGN_IDENTITY=""
-          export CODE_SIGN_ENTITLEMENTS=""
-          export PROVISIONING_PROFILE_SPECIFIER=""
 
-          # 生成 Xcode 工程配置
-          flutter build ios --release --no-codesign --config-only
-
-          # 用 xcodebuild 直接构建，强制禁用所有代码签名
-          cd ios
-          xcodebuild build \
-            -scheme Runner \
-            -workspace Runner.xcworkspace \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            -quiet
+          # Flutter 3.24.0 的 --no-codesign 可以正常构建未签名包
+          flutter build ios --release --no-codesign
 
           # 打包 IPA
-          cd ..
-          APP_PATH="build/ios/Release-iphoneos/Runner.app"
+          APP_PATH="build/ios/iphoneos/Runner.app"
           if [ -d "$APP_PATH" ]; then
             mkdir -p Payload
             cp -r "$APP_PATH" Payload/
             zip -r Runner-unsigned.ipa Payload
             rm -rf Payload
             echo "IPA built successfully: $(pwd)/Runner-unsigned.ipa"
+            ls -lh Runner-unsigned.ipa
           else
             echo "ERROR: Runner.app not found at $APP_PATH"
-            ls -la build/ios/
+            find build/ios -name "Runner.app" -type d 2>/dev/null || true
             exit 1
           fi
     artifacts:
