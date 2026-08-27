@@ -22,7 +22,7 @@ dependencies:
   # ICS 解析
   icalendar_parser: ^2.0.0
   # 文件选择与读写
-  file_picker: ^6.1.1
+  file_picker: ^8.0.0
   # 截图导出分享
   screenshot: ^2.1.0
   image_gallery_saver: ^2.0.3
