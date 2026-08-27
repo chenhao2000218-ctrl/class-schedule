@@ -2,287 +2,258 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/course.dart';
+import '../models/holiday.dart';
 import '../utils/constants.dart';
 import '../utils/date_utils.dart';
+import '../utils/theme.dart';
 
-/// 周课表视图组件
+/// 周课表视图组件（iOS 风格）
 class WeekTimetable extends StatelessWidget {
   final int currentWeek;
-  final VoidCallback? onCourseTap;
-  final Function(Course)? onCourseLongPress;
+  final void Function(Course)? onCourseTap;
 
   const WeekTimetable({
     super.key,
     required this.currentWeek,
     this.onCourseTap,
-    this.onCourseLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final settings = state.settings;
-    final timeSlots = settings.timeSlots;
-    final showWeekend = settings.showWeekend;
-    final dayCount = showWeekend ? 7 : 5;
+    return Consumer<AppState>(
+      builder: (context, state, _) {
+        final settings = state.settings;
+        final timeSlots = settings.timeSlots;
+        final showWeekend = settings.showWeekend;
+        final days = showWeekend ? 7 : 5;
 
-    // 计算本周日期
-    final now = DateTime.now();
-    final monday = DateUtils.mondayOf(now);
+        // 计算每节课的高度
+        const headerHeight = 36.0;
+        const timeColumnWidth = 48.0;
+        final slotHeight = 56.0;
 
-    return Column(
-      children: [
-        // 星期表头
-        _buildHeader(context, monday, dayCount),
-        // 课表主体
-        Expanded(
-          child: SingleChildScrollView(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 左侧节次时间列
-                _buildTimeColumn(timeSlots),
-                // 右侧课程网格
-                Expanded(
-                  child: _buildCourseGrid(
-                    context,
-                    state,
-                    monday,
-                    dayCount,
-                    timeSlots.length,
-                  ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            children: [
+              // 星期表头
+              SizedBox(
+                height: headerHeight,
+                child: Row(
+                  children: [
+                    const SizedBox(width: timeColumnWidth),
+                    ...List.generate(days, (i) {
+                      final weekday = i + 1;
+                      final isToday =
+                          DateTime.now().weekday == weekday;
+                      return Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                kWeekdays[weekday - 1],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isToday
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isToday
+                                      ? Theme.of(context).primaryColor
+                                      : Colors.grey,
+                                ),
+                              ),
+                              if (isToday)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 星期表头
-  Widget _buildHeader(BuildContext context, DateTime monday, int dayCount) {
-    final today = DateTime.now();
-    return Container(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          // 左侧占位（对齐时间列）
-          const SizedBox(width: 48),
-          ...List.generate(dayCount, (i) {
-            final date = monday.add(Duration(days: i));
-            final isToday = DateUtils.isSameDay(date, today);
-            return Expanded(
-              child: Column(
-                children: [
-                  Text(
-                    kWeekdaysShort[i],
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          isToday ? FontWeight.bold : FontWeight.normal,
-                      color: isToday
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: isToday
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent,
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${date.day}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isToday
-                            ? Colors.white
-                            : Theme.of(context).colorScheme.onSurface,
-                        fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ],
               ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
+              // 课表主体
+              ...List.generate(timeSlots.length, (slotIndex) {
+                final slot = timeSlots[slotIndex];
+                return SizedBox(
+                  height: slotHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 时间列
+                      SizedBox(
+                        width: timeColumnWidth,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${slot.section}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              slot.startTime.substring(0, 5),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 每天的课程
+                      ...List.generate(days, (dayIndex) {
+                        final weekday = dayIndex + 1;
+                        // 查找该节次的课程
+                        final course = state.courses.firstWhere(
+                          (c) =>
+                              c.weekday == weekday &&
+                              c.startSection <= slot.section &&
+                              c.endSection >= slot.section,
+                          orElse: () => Course(
+                            name: '',
+                            teacher: '',
+                            classroom: '',
+                            weekday: weekday,
+                            startSection: slot.section,
+                            endSection: slot.section,
+                          ),
+                        );
 
-  /// 左侧节次时间列
-  Widget _buildTimeColumn(List timeSlots) {
-    return SizedBox(
-      width: 48,
-      child: Column(
-        children: timeSlots.map<Widget>((slot) {
-          return Container(
-            height: 64,
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${slot.section}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  slot.startTime,
-                  style: const TextStyle(fontSize: 9, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+                        // 只在课程的起始节次渲染课程块
+                        if (course.name.isNotEmpty &&
+                            course.startSection != slot.section) {
+                          return Expanded(child: Container());
+                        }
 
-  /// 课程网格
-  Widget _buildCourseGrid(
-    BuildContext context,
-    AppState state,
-    DateTime monday,
-    int dayCount,
-    int maxSections,
-  ) {
-    final settings = state.settings;
-    final week = currentWeek;
+                        if (course.name.isEmpty) {
+                          return Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.04),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          );
+                        }
 
-    return Column(
-      children: List.generate(maxSections, (sectionIdx) {
-        final section = sectionIdx + 1;
-        return SizedBox(
-          height: 64,
-          child: Row(
-            children: List.generate(dayCount, (dayIdx) {
-              final weekday = dayIdx + 1;
-              final date = monday.add(Duration(days: dayIdx));
+                        // 检查是否在当前周
+                        final inWeek = course.weeks.contains(currentWeek);
+                        final weekMatch = course.weekType == WeekType.all ||
+                            (course.weekType == WeekType.odd &&
+                                currentWeek % 2 == 1) ||
+                            (course.weekType == WeekType.even &&
+                                currentWeek % 2 == 0);
 
-              // 检查假期
-              final isHoliday = state.holidays.any((h) =>
-                  h.isHoliday && DateUtils.isSameDay(h.date, date));
+                        if (!inWeek || !weekMatch) {
+                          return Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withOpacity(0.04),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          );
+                        }
 
-              // 检查调休
-              Holiday? adjust;
-              for (final h in state.holidays) {
-                if (h.isAdjust && DateUtils.isSameDay(h.date, date)) {
-                  adjust = h;
-                  break;
-                }
-              }
-              final effectiveWeekday =
-                  adjust != null && adjust.weekdayOverride != null
-                      ? adjust.weekdayOverride!
-                      : weekday;
+                        // 计算课程块跨越的节次
+                        final span = course.endSection - course.startSection + 1;
+                        final gradient = kCourseGradients[
+                            course.colorIndex % kCourseGradients.length];
 
-              // 查找从本节开始的课程
-              final course = state.courses.firstWhere(
-                (c) =>
-                    c.weekday == effectiveWeekday &&
-                    c.startSection == section &&
-                    c.hasClassOnWeek(week),
-                orElse: () => Course(
-                  name: '',
-                  weekday: 0,
-                  startSection: 0,
-                  endSection: 0,
-                ),
-              );
-
-              // 如果是某课程的中间节次，返回空（已被上面的课程块覆盖）
-              final isPartOfBigger = state.courses.any((c) =>
-                  c.weekday == effectiveWeekday &&
-                  c.startSection < section &&
-                  c.endSection >= section &&
-                  c.hasClassOnWeek(week));
-
-              if (isHoliday) {
-                return Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.all(1),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Center(
-                      child: Text('休',
-                          style: TextStyle(fontSize: 10, color: Colors.grey)),
-                    ),
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => onCourseTap?.call(course),
+                            child: AnimatedScale(
+                              scale: 1.0,
+                              duration: const Duration(milliseconds: 100),
+                              curve: Curves.easeOut,
+                              child: Container(
+                                margin: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      gradient[0].withOpacity(0.9),
+                                      gradient[1].withOpacity(0.95),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: gradient[1].withOpacity(0.25),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(6),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      course.name,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: span > 1 ? 3 : 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (span > 1) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        course.classroom,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color:
+                                              Colors.white.withOpacity(0.85),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (course.teacher.isNotEmpty)
+                                        Text(
+                                          course.teacher,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: Colors.white
+                                                .withOpacity(0.7),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
                   ),
                 );
-              }
-
-              if (course.name.isEmpty || isPartOfBigger) {
-                return Expanded(child: Container());
-              }
-
-              final span = course.endSection - course.startSection + 1;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onCourseTap?.call(),
-                  onLongPress: () => onCourseLongPress?.call(course),
-                  child: Container(
-                    height: 64.0 * span,
-                    margin: const EdgeInsets.all(1),
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: kCourseColors[
-                              course.colorIndex % kCourseColors.length]
-                          .withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          course.name,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                          maxLines: span >= 2 ? 3 : 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (span >= 2) ...[
-                          const SizedBox(height: 2),
-                          if (course.classroom.isNotEmpty)
-                            Text(
-                              course.classroom,
-                              style: const TextStyle(
-                                  fontSize: 9, color: Colors.white70),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          if (course.teacher.isNotEmpty)
-                            Text(
-                              course.teacher,
-                              style: const TextStyle(
-                                  fontSize: 9, color: Colors.white70),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+              }),
+            ],
           ),
         );
-      }),
+      },
     );
   }
 }

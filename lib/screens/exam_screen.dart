@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/exam.dart';
 import '../utils/date_utils.dart';
+import '../widgets/glass_widgets.dart';
 
-/// 考试安排页面
+/// 考试安排页面 - iOS 分组列表风格
 class ExamScreen extends StatefulWidget {
   const ExamScreen({super.key});
 
@@ -21,66 +22,128 @@ class _ExamScreenState extends State<ExamScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('考试安排')),
-      body: exams.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.assignment, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('暂无考试安排', style: TextStyle(color: Colors.grey)),
-                ],
+      body: Stack(
+        children: [
+          exams.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: exams.length,
+                  itemBuilder: (ctx, i) {
+                    final exam = exams[i];
+                    final isPast = exam.dateTime.isBefore(DateTime.now());
+                    return _buildExamCard(exam, isPast, state);
+                  },
+                ),
+          // 右下角玻璃悬浮添加按钮（避免被底栏遮挡）
+          Positioned(
+            right: 16,
+            bottom: 100,
+            child: GlassPillButton(
+              icon: Icons.add,
+              label: '添加考试',
+              onPressed: _addExam,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_outlined,
+                size: 64, color: Colors.grey.withOpacity(0.4)),
+            const SizedBox(height: 16),
+            const Text('暂无考试安排',
+                style: TextStyle(fontSize: 17, color: Colors.grey)),
+          ],
+        ),
+      );
+
+  Widget _buildExamCard(Exam exam, bool isPast, AppState state) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // 日期圆形
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isPast
+                      ? Colors.grey
+                      : Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    '${exam.dateTime.day}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: exams.length,
-              itemBuilder: (ctx, i) {
-                final exam = exams[i];
-                final isPast = exam.dateTime.isBefore(DateTime.now());
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isPast
-                          ? Colors.grey
-                          : Theme.of(context).colorScheme.primary,
-                      child: Text(
-                        '${exam.dateTime.day}',
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    title: Text(
+              const SizedBox(width: 14),
+              // 内容
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                       exam.courseName,
                       style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         decoration:
                             isPast ? TextDecoration.lineThrough : null,
+                        color: isPast ? Colors.grey : null,
                       ),
                     ),
-                    subtitle: Text(
-                      '${exam.examName.isNotEmpty ? exam.examName + ' · ' : ''}'
-                      '${DateUtils.formatDateTime(exam.dateTime)}'
+                    if (exam.examName.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(exam.examName,
+                          style: TextStyle(
+                              fontSize: 13, color: Colors.grey[500])),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(
+                      '${AppDateUtils.formatDateTime(exam.dateTime)}'
                       '${exam.location.isNotEmpty ? ' · ${exam.location}' : ''}',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey[500]),
                     ),
-                    trailing: PopupMenuButton(
-                      itemBuilder: (ctx) => [
-                        const PopupMenuItem(value: 'edit', child: Text('编辑')),
-                        const PopupMenuItem(value: 'delete', child: Text('删除')),
-                      ],
-                      onSelected: (v) {
-                        if (v == 'edit') _editExam(exam);
-                        if (v == 'delete') state.deleteExam(exam.id);
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addExam,
-        icon: const Icon(Icons.add),
-        label: const Text('添加考试'),
+                  ],
+                ),
+              ),
+              // 操作
+              PopupMenuButton(
+                icon: Icon(Icons.more_vert,
+                    size: 20, color: Colors.grey[400]),
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                  const PopupMenuItem(value: 'delete', child: Text('删除')),
+                ],
+                onSelected: (v) {
+                  if (v == 'edit') _editExam(exam);
+                  if (v == 'delete') state.deleteExam(exam.id);
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -128,7 +191,8 @@ class _ExamEditDialogState extends State<ExamEditDialog> {
     _courseCtrl = TextEditingController(text: e?.courseName ?? '');
     _nameCtrl = TextEditingController(text: e?.examName ?? '');
     _locationCtrl = TextEditingController(text: e?.location ?? '');
-    _dateTime = e?.dateTime ?? DateTime.now().add(const Duration(days: 7));
+    _dateTime =
+        e?.dateTime ?? DateTime.now().add(const Duration(days: 7));
   }
 
   @override
@@ -146,7 +210,8 @@ class _ExamEditDialogState extends State<ExamEditDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: '考试名称（期中/期末等）'),
+              decoration:
+                  const InputDecoration(labelText: '考试名称（期中/期末等）'),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -157,7 +222,7 @@ class _ExamEditDialogState extends State<ExamEditDialog> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('考试时间'),
-              subtitle: Text(DateUtils.formatDateTime(_dateTime)),
+              subtitle: Text(AppDateUtils.formatDateTime(_dateTime)),
               trailing: const Icon(Icons.edit_calendar),
               onTap: () async {
                 final date = await showDatePicker(
@@ -184,7 +249,8 @@ class _ExamEditDialogState extends State<ExamEditDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context), child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消')),
         ElevatedButton(
           onPressed: () {
             if (_courseCtrl.text.trim().isEmpty) return;

@@ -48,7 +48,7 @@ class _HolidayScreenState extends State<HolidayScreen> {
                     ),
                     title: Text(h.name.isNotEmpty ? h.name : (h.isHoliday ? '假期' : '调休')),
                     subtitle: Text(
-                      '${DateUtils.formatDate(h.date)}'
+                      '${AppDateUtils.formatDate(h.date)}'
                       '${h.isAdjust && h.weekdayOverride != null ? ' · 上${kWeekdays[h.weekdayOverride! - 1]}的课' : ''}',
                     ),
                     trailing: IconButton(

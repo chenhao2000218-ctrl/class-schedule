@@ -1,3 +1,5 @@
+import 'course.dart';
+
 /// 假期与调休
 /// type=holiday: 假期，该日期自动隐藏课程
 /// type=adjust: 调休日，该日期按 weekdayOverride 的星期来显示课程

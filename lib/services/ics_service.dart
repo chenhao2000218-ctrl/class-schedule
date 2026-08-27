@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:icalendar_parser/icalendar_parser.dart';
 import '../models/course.dart';
@@ -23,13 +22,15 @@ class IcsService {
     final seen = <String>{}; // 去重
 
     for (final event in calendar.data) {
-      if (event.type != 'VEVENT') continue;
+      // event 是 Map<String, dynamic>，包含 'type' 和 'data'
+      if (event['type'] != 'VEVENT') continue;
 
-      final summary = (event.data['summary'] ?? '').toString();
-      final description = (event.data['description'] ?? '').toString();
-      final location = (event.data['location'] ?? '').toString();
-      final dtstart = event.data['dtstart'];
-      final rrule = event.data['rrule'];
+      final data = event['data'] as Map<String, dynamic>;
+      final summary = (data['summary'] ?? '').toString();
+      final description = (data['description'] ?? '').toString();
+      final location = (data['location'] ?? '').toString();
+      final dtstart = data['dtstart'];
+      final rrule = data['rrule'];
 
       if (dtstart == null) continue;
       DateTime startDate;
@@ -54,7 +55,7 @@ class IcsService {
         if (rruleStr.contains('INTERVAL=2')) {
           weekType = startDate.day % 2 == 1 ? WeekType.odd : WeekType.even;
         }
-        // 解析 COUNT 或 UNTIL
+        // 解析 COUNT
         final countMatch = RegExp(r'COUNT=(\d+)').firstMatch(rruleStr);
         if (countMatch != null) {
           final count = int.parse(countMatch.group(1)!);
@@ -73,7 +74,7 @@ class IcsService {
         if (slots[i].startTime == startTime) {
           startSection = slots[i].section;
           // 估算结束节次
-          final dtend = event.data['dtend'];
+          final dtend = data['dtend'];
           if (dtend != null) {
             DateTime endDate;
             if (dtend is DateTime) {
@@ -104,7 +105,7 @@ class IcsService {
       }
 
       // 去重 key
-      final key = '$summary-$weekday-$startSection-$startSection';
+      final key = '$summary-$weekday-$startSection';
       if (seen.contains(key)) continue;
       seen.add(key);
 

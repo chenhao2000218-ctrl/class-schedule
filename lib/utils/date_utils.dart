@@ -1,7 +1,7 @@
 import '../models/app_settings.dart';
 
 /// 日期工具类
-class DateUtils {
+class AppDateUtils {
   /// 获取某日期是学期第几周（从1开始）
   static int weekOfDate(DateTime date, DateTime semesterStart) {
     final diff = date.difference(semesterStart).inDays;

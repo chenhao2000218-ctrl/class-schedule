@@ -24,7 +24,7 @@ dependencies:
   # 文件选择与读写
   file_picker: ^8.0.0
   # 截图导出分享
-  screenshot: ^2.1.0
+  screenshot: ^3.0.0
   image_gallery_saver: ^2.0.3
   share_plus: ^7.2.1
   # 工具
@@ -40,3 +40,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  shaders:
+    - shaders/liquid_glass.frag

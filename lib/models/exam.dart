@@ -1,3 +1,5 @@
+import 'course.dart';
+
 /// 考试安排
 class Exam {
   String id;

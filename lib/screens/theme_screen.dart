@@ -23,23 +23,23 @@ class ThemeScreen extends StatelessWidget {
             child: Text('显示模式',
                 style: TextStyle(fontSize: 13, color: Colors.grey)),
           ),
-          RadioListTile<ThemeMode>(
+          RadioListTile<AppThemeMode>(
             title: const Text('跟随系统'),
-            value: ThemeMode.system,
+            value: AppThemeMode.system,
             groupValue: settings.themeMode,
             onChanged: (v) =>
                 state.updateTheme(v!, settings.colorSeed),
           ),
-          RadioListTile<ThemeMode>(
+          RadioListTile<AppThemeMode>(
             title: const Text('浅色模式'),
-            value: ThemeMode.light,
+            value: AppThemeMode.light,
             groupValue: settings.themeMode,
             onChanged: (v) =>
                 state.updateTheme(v!, settings.colorSeed),
           ),
-          RadioListTile<ThemeMode>(
+          RadioListTile<AppThemeMode>(
             title: const Text('深色模式'),
-            value: ThemeMode.dark,
+            value: AppThemeMode.dark,
             groupValue: settings.themeMode,
             onChanged: (v) =>
                 state.updateTheme(v!, settings.colorSeed),

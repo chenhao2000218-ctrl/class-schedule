@@ -5,7 +5,7 @@ class AppSettings {
   DateTime semesterStart; // 学期开始日期（第1周周一）
   int totalWeeks; // 总周数
   int colorSeed; // 主题色种子（0-15）
-  ThemeMode themeMode; // 主题模式
+  AppThemeMode themeMode; // 主题模式
   int defaultRemindMinutes; // 默认提前提醒分钟数
   bool showWeekend; // 是否显示周末
   List<TimeSlot> timeSlots; // 作息时间
@@ -14,7 +14,7 @@ class AppSettings {
     DateTime? semesterStart,
     this.totalWeeks = 20,
     this.colorSeed = 0,
-    this.themeMode = ThemeMode.system,
+    this.themeMode = AppThemeMode.system,
     this.defaultRemindMinutes = 10,
     this.showWeekend = true,
     List<TimeSlot>? timeSlots,
@@ -44,7 +44,7 @@ class AppSettings {
             : null,
         totalWeeks: json['totalWeeks'] ?? 20,
         colorSeed: json['colorSeed'] ?? 0,
-        themeMode: ThemeMode.values[json['themeMode'] ?? 0],
+        themeMode: AppThemeMode.values[json['themeMode'] ?? 0],
         defaultRemindMinutes: json['defaultRemindMinutes'] ?? 10,
         showWeekend: json['showWeekend'] ?? true,
         timeSlots: json['timeSlots'] != null
@@ -55,4 +55,4 @@ class AppSettings {
       );
 }
 
-enum ThemeMode { system, light, dark }
+enum AppThemeMode { system, light, dark }

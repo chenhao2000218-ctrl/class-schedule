@@ -1,3 +1,5 @@
+import 'course.dart';
+
 /// 作业待办
 class Homework {
   String id;

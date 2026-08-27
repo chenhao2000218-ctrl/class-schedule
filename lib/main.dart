@@ -20,13 +20,12 @@ class ClassScheduleApp extends StatelessWidget {
       child: Consumer<AppState>(
         builder: (context, state, _) {
           final settings = state.settings;
-          final brightness = _resolveBrightness(settings.themeMode, context);
 
           return MaterialApp(
             title: '课程表',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.build(settings.colorSeed, Brightness.light),
-            darkTheme: AppTheme.build(settings.colorSeed, Brightness.dark),
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
             themeMode: _toMaterialThemeMode(settings.themeMode),
             home: const HomeScreen(),
           );
@@ -35,24 +34,13 @@ class ClassScheduleApp extends StatelessWidget {
     );
   }
 
-  Brightness _resolveBrightness(ThemeMode mode, BuildContext context) {
+  ThemeMode _toMaterialThemeMode(AppThemeMode mode) {
     switch (mode) {
-      case ThemeMode.light:
-        return Brightness.light;
-      case ThemeMode.dark:
-        return Brightness.dark;
-      case ThemeMode.system:
-        return MediaQuery.of(context).platformBrightness;
-    }
-  }
-
-  ThemeMode _toMaterialThemeMode(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
+      case AppThemeMode.light:
         return ThemeMode.light;
-      case ThemeMode.dark:
+      case AppThemeMode.dark:
         return ThemeMode.dark;
-      case ThemeMode.system:
+      case AppThemeMode.system:
         return ThemeMode.system;
     }
   }

@@ -3,6 +3,7 @@ import '../models/course.dart';
 import '../models/exam.dart';
 import '../models/homework.dart';
 import '../models/holiday.dart';
+import '../models/time_slot.dart';
 import '../models/app_settings.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
@@ -20,6 +21,7 @@ class AppState extends ChangeNotifier {
   List<Holiday> _holidays = [];
   AppSettings _settings = AppSettings();
   bool _loaded = false;
+  int _currentWeek = 1;
 
   List<Course> get courses => List.unmodifiable(_courses);
   List<Exam> get exams => List.unmodifiable(_exams);
@@ -27,6 +29,7 @@ class AppState extends ChangeNotifier {
   List<Holiday> get holidays => List.unmodifiable(_holidays);
   AppSettings get settings => _settings;
   bool get loaded => _loaded;
+  int get currentWeek => _currentWeek;
 
   /// 初始化：加载本地数据 + 初始化通知
   Future<void> init() async {
@@ -38,6 +41,9 @@ class AppState extends ChangeNotifier {
     _holidays = _storage.loadHolidays();
     _settings = _storage.loadSettings();
     _loaded = true;
+    _currentWeek = _weekOfDate(DateTime.now());
+    if (_currentWeek < 1) _currentWeek = 1;
+    if (_currentWeek > _settings.totalWeeks) _currentWeek = _settings.totalWeeks;
     notifyListeners();
     await _refreshRemindersAndWidget();
   }
@@ -180,7 +186,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateTheme(ThemeMode mode, int colorSeed) async {
+  Future<void> updateTheme(AppThemeMode mode, int colorSeed) async {
     _settings = AppSettings(
       semesterStart: _settings.semesterStart,
       totalWeeks: _settings.totalWeeks,
@@ -238,4 +244,19 @@ class AppState extends ChangeNotifier {
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// 设置当前查看的周
+  void setWeek(int week) {
+    if (week < 1 || week > _settings.totalWeeks) return;
+    _currentWeek = week;
+    notifyListeners();
+  }
+
+  /// 获取当前周某星期的日期
+  DateTime dateForWeekday(int weekday) {
+    final weekStart = _settings.semesterStart.add(
+      Duration(days: (_currentWeek - 1) * 7),
+    );
+    return weekStart.add(Duration(days: weekday - 1));
+  }
 }

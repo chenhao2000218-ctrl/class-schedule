@@ -19,7 +19,7 @@ class WidgetService {
     AppSettings settings,
   ) async {
     final now = DateTime.now();
-    final currentWeek = DateUtils.currentWeek(settings);
+    final currentWeek = AppDateUtils.currentWeek(settings);
 
     // 获取今日课程（考虑假期和调休）
     final todayCourses = courses
@@ -30,7 +30,7 @@ class WidgetService {
 
     // 转换为小组件可用的精简数据
     final widgetData = {
-      'date': DateUtils.formatDate(now),
+      'date': AppDateUtils.formatDate(now),
       'week': currentWeek,
       'courses': todayCourses.map((c) {
         final slot = timeSlots.firstWhere(

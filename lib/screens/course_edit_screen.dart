@@ -3,317 +3,521 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/course.dart';
 import '../utils/constants.dart';
+import '../utils/theme.dart';
 
-/// 课程添加/编辑页面
+/// 课程编辑页面：iOS 分组表单风格
 class CourseEditScreen extends StatefulWidget {
-  final Course? existingCourse;
-  const CourseEditScreen({super.key, this.existingCourse});
+  final Course? course;
+
+  const CourseEditScreen({super.key, this.course});
 
   @override
   State<CourseEditScreen> createState() => _CourseEditScreenState();
 }
 
 class _CourseEditScreenState extends State<CourseEditScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameCtrl;
-  late TextEditingController _teacherCtrl;
-  late TextEditingController _classroomCtrl;
-  late TextEditingController _remarkCtrl;
-
+  late TextEditingController _nameController;
+  late TextEditingController _teacherController;
+  late TextEditingController _classroomController;
+  late TextEditingController _remarkController;
   late int _weekday;
   late int _startSection;
   late int _endSection;
+  late int _startWeek;
+  late int _endWeek;
   late WeekType _weekType;
   late int _colorIndex;
-  late int _remindMinutes;
-  late RangeValues _weekRange;
-  late int _totalWeeks;
-
-  bool get _isEdit => widget.existingCourse != null;
 
   @override
   void initState() {
     super.initState();
-    final c = widget.existingCourse;
-    _nameCtrl = TextEditingController(text: c?.name ?? '');
-    _teacherCtrl = TextEditingController(text: c?.teacher ?? '');
-    _classroomCtrl = TextEditingController(text: c?.classroom ?? '');
-    _remarkCtrl = TextEditingController(text: c?.remark ?? '');
+    final c = widget.course;
+    _nameController = TextEditingController(text: c?.name ?? '');
+    _teacherController = TextEditingController(text: c?.teacher ?? '');
+    _classroomController = TextEditingController(text: c?.classroom ?? '');
+    _remarkController = TextEditingController(text: c?.remark ?? '');
     _weekday = c?.weekday ?? 1;
     _startSection = c?.startSection ?? 1;
     _endSection = c?.endSection ?? 1;
+    _startWeek = c?.weeks.first ?? 1;
+    _endWeek = c?.weeks.last ?? 20;
     _weekType = c?.weekType ?? WeekType.all;
     _colorIndex = c?.colorIndex ?? 0;
-    _remindMinutes = c?.remindMinutes ?? 10;
-    _totalWeeks = 20;
-    final startW = c?.weeks.isNotEmpty == true ? c!.weeks.first : 1;
-    final endW = c?.weeks.isNotEmpty == true ? c!.weeks.last : 20;
-    _weekRange = RangeValues(startW.toDouble(), endW.toDouble());
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _totalWeeks = context.read<AppState>().settings.totalWeeks;
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _teacherCtrl.dispose();
-    _classroomCtrl.dispose();
-    _remarkCtrl.dispose();
+    _nameController.dispose();
+    _teacherController.dispose();
+    _classroomController.dispose();
+    _remarkController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final maxSection = state.settings.timeSlots.length;
+    final isEdit = widget.course != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEdit ? '编辑课程' : '添加课程'),
+        title: Text(isEdit ? '编辑课程' : '添加课程'),
         actions: [
-          if (_isEdit)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: _confirmDelete,
-            ),
+          TextButton(
+            onPressed: _save,
+            child: const Text('保存',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // 课程名称
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: '课程名称 *'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '请输入课程名称' : null,
-            ),
-            const SizedBox(height: 16),
-            // 老师 + 教室
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _teacherCtrl,
-                    decoration: const InputDecoration(labelText: '授课老师'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _classroomCtrl,
-                    decoration: const InputDecoration(labelText: '教室'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // 星期
-            _buildSectionTitle('星期'),
-            Wrap(
-              spacing: 8,
-              children: List.generate(7, (i) {
-                final selected = _weekday == i + 1;
-                return ChoiceChip(
-                  label: Text(kWeekdays[i]),
-                  selected: selected,
-                  onSelected: (_) => setState(() => _weekday = i + 1),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-            // 节次
-            _buildSectionTitle('节次'),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _startSection,
-                    decoration: const InputDecoration(labelText: '开始节次'),
-                    items: List.generate(
-                      maxSection,
-                      (i) => DropdownMenuItem(value: i + 1, child: Text('第 ${i + 1} 节')),
-                    ),
-                    onChanged: (v) {
-                      setState(() {
-                        _startSection = v!;
-                        if (_endSection < _startSection) _endSection = _startSection;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<int>(
-                    value: _endSection,
-                    decoration: const InputDecoration(labelText: '结束节次'),
-                    items: List.generate(
-                      maxSection - _startSection + 1,
-                      (i) => DropdownMenuItem(
-                          value: _startSection + i,
-                          child: Text('第 ${_startSection + i} 节')),
-                    ),
-                    onChanged: (v) => setState(() => _endSection = v!),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // 周范围
-            _buildSectionTitle('上课周范围 (${_weekRange.start.toInt()} - ${_weekRange.end.toInt()} 周)'),
-            RangeSlider(
-              values: _weekRange,
-              min: 1,
-              max: _totalWeeks.toDouble(),
-              divisions: _totalWeeks - 1,
-              labels: RangeLabels(
-                '${_weekRange.start.toInt()}周',
-                '${_weekRange.end.toInt()}周',
-              ),
-              onChanged: (v) => setState(() => _weekRange = v),
-            ),
-            // 单双周
-            Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text('每周'),
-                  selected: _weekType == WeekType.all,
-                  onSelected: (_) => setState(() => _weekType = WeekType.all),
-                ),
-                ChoiceChip(
-                  label: const Text('单周'),
-                  selected: _weekType == WeekType.odd,
-                  onSelected: (_) => setState(() => _weekType = WeekType.odd),
-                ),
-                ChoiceChip(
-                  label: const Text('双周'),
-                  selected: _weekType == WeekType.even,
-                  onSelected: (_) => setState(() => _weekType = WeekType.even),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // 颜色
-            _buildSectionTitle('颜色'),
-            Wrap(
-              spacing: 8,
-              children: List.generate(kCourseColors.length, (i) {
-                return GestureDetector(
-                  onTap: () => setState(() => _colorIndex = i),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: kCourseColors[i],
-                      shape: BoxShape.circle,
-                      border: _colorIndex == i
-                          ? Border.all(color: Colors.black, width: 2)
-                          : null,
-                    ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-            // 提醒
-            _buildSectionTitle('上课提醒'),
-            DropdownButtonFormField<int>(
-              value: _remindMinutes,
-              decoration: const InputDecoration(labelText: '提前提醒'),
-              items: const [
-                DropdownMenuItem(value: 0, child: Text('不提醒')),
-                DropdownMenuItem(value: 5, child: Text('提前 5 分钟')),
-                DropdownMenuItem(value: 10, child: Text('提前 10 分钟')),
-                DropdownMenuItem(value: 15, child: Text('提前 15 分钟')),
-                DropdownMenuItem(value: 30, child: Text('提前 30 分钟')),
-              ],
-              onChanged: (v) => setState(() => _remindMinutes = v!),
-            ),
-            const SizedBox(height: 16),
-            // 备注
-            TextFormField(
-              controller: _remarkCtrl,
-              decoration: const InputDecoration(labelText: '备注'),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 24),
-            // 保存按钮
-            ElevatedButton(
-              onPressed: _save,
-              child: Text(_isEdit ? '保存修改' : '添加课程'),
-            ),
-          ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // 基本信息分组
+          _buildSectionTitle('基本信息'),
+          _buildGroup([
+            _buildTextField('课程名称', _nameController, placeholder: '必填'),
+            _buildDivider(),
+            _buildTextField('授课老师', _teacherController),
+            _buildDivider(),
+            _buildTextField('教室', _classroomController),
+          ]),
+          const SizedBox(height: 24),
+
+          // 时间分组
+          _buildSectionTitle('上课时间'),
+          _buildGroup([
+            _buildPickerRow('星期', kWeekdays[_weekday]!, () => _showWeekdayPicker()),
+            _buildDivider(),
+            _buildPickerRow('开始节次', '第 $_startSection 节', () => _showSectionPicker(true)),
+            _buildDivider(),
+            _buildPickerRow('结束节次', '第 $_endSection 节', () => _showSectionPicker(false)),
+          ]),
+          const SizedBox(height: 24),
+
+          // 周范围分组
+          _buildSectionTitle('上课周'),
+          _buildGroup([
+            _buildPickerRow('开始周', '第 $_startWeek 周', () => _showWeekPicker(true)),
+            _buildDivider(),
+            _buildPickerRow('结束周', '第 $_endWeek 周', () => _showWeekPicker(false)),
+            _buildDivider(),
+            _buildWeekTypeSelector(),
+          ]),
+          const SizedBox(height: 24),
+
+          // 颜色分组
+          _buildSectionTitle('课程颜色'),
+          _buildColorPicker(),
+          const SizedBox(height: 24),
+
+          // 备注分组
+          _buildSectionTitle('备注'),
+          _buildGroup([
+            _buildTextField('备注', _remarkController, maxLines: 3),
+          ]),
+          const SizedBox(height: 32),
+
+          if (isEdit)
+            _buildDeleteButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[600],
+          letterSpacing: 0.2,
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-      );
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final weeks = List.generate(
-      _weekRange.end.toInt() - _weekRange.start.toInt() + 1,
-      (i) => _weekRange.start.toInt() + i,
+  Widget _buildGroup(List<Widget> children) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(children: children),
     );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller,
+      {String? placeholder, int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              maxLines: maxLines,
+              style: const TextStyle(fontSize: 16),
+              decoration: InputDecoration(
+                hintText: placeholder,
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16),
+      child: Divider(height: 1, color: Theme.of(context).dividerColor),
+    );
+  }
+
+  Widget _buildPickerRow(String label, String value, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 80,
+                child: Text(label,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w500)),
+              ),
+              Expanded(
+                child: Text(value,
+                    style: TextStyle(
+                        fontSize: 16, color: Colors.grey[600]),
+                    textAlign: TextAlign.right),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeekTypeSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 80,
+            child: Text('单双周',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+          ),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _buildWeekTypeChip(WeekType.all, '每周'),
+                const SizedBox(width: 8),
+                _buildWeekTypeChip(WeekType.odd, '单周'),
+                const SizedBox(width: 8),
+                _buildWeekTypeChip(WeekType.even, '双周'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeekTypeChip(WeekType type, String label) {
+    final selected = _weekType == type;
+    return GestureDetector(
+      onTap: () => setState(() => _weekType = type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).primaryColor
+              : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: selected ? Colors.white : Colors.grey[600],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorPicker() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: List.generate(kCourseGradients.length, (index) {
+          final gradient = kCourseGradients[index];
+          final selected = _colorIndex == index;
+          return GestureDetector(
+            onTap: () => setState(() => _colorIndex = index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: gradient),
+                borderRadius: BorderRadius.circular(10),
+                border: selected
+                    ? Border.all(color: Colors.white, width: 3)
+                    : null,
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: gradient[1].withOpacity(0.4),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        )
+                      ]
+                    : null,
+              ),
+              child: selected
+                  ? const Icon(Icons.check, color: Colors.white, size: 18)
+                  : null,
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _delete,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Text(
+                '删除课程',
+                style: TextStyle(
+                  fontSize: 17,
+                  color: Color(0xFFFF3B30),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showWeekdayPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _buildPickerSheet(
+        title: '选择星期',
+        items: kWeekdays,
+        initialIndex: _weekday - 1,
+        onSelected: (index) => setState(() => _weekday = index + 1),
+      ),
+    );
+  }
+
+  void _showSectionPicker(bool isStart) {
+    final maxSection = context.read<AppState>().settings.timeSlots.length;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _buildPickerSheet(
+        title: isStart ? '开始节次' : '结束节次',
+        items: List.generate(maxSection, (i) => '第 ${i + 1} 节'),
+        initialIndex: (isStart ? _startSection : _endSection) - 1,
+        onSelected: (index) {
+          setState(() {
+            if (isStart) {
+              _startSection = index + 1;
+              if (_endSection < _startSection) _endSection = _startSection;
+            } else {
+              _endSection = index + 1;
+              if (_startSection > _endSection) _startSection = _endSection;
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  void _showWeekPicker(bool isStart) {
+    final totalWeeks = context.read<AppState>().settings.totalWeeks;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _buildPickerSheet(
+        title: isStart ? '开始周' : '结束周',
+        items: List.generate(totalWeeks, (i) => '第 ${i + 1} 周'),
+        initialIndex: (isStart ? _startWeek : _endWeek) - 1,
+        onSelected: (index) {
+          setState(() {
+            if (isStart) {
+              _startWeek = index + 1;
+              if (_endWeek < _startWeek) _endWeek = _startWeek;
+            } else {
+              _endWeek = index + 1;
+              if (_startWeek > _endWeek) _startWeek = _endWeek;
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildPickerSheet({
+    required String title,
+    required List<String> items,
+    required int initialIndex,
+    required ValueChanged<int> onSelected,
+  }) {
+    int selectedIndex = initialIndex;
+    return StatefulBuilder(
+      builder: (context, setSheetState) {
+        return Container(
+          height: 300,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final selected = index == selectedIndex;
+                    return ListTile(
+                      title: Text(items[index],
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: selected
+                                ? Theme.of(context).primaryColor
+                                : null,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w400,
+                          )),
+                      onTap: () {
+                        setSheetState(() => selectedIndex = index);
+                        onSelected(index);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _save() {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入课程名称')),
+      );
+      return;
+    }
+
+    final weeks =
+        List.generate(_endWeek - _startWeek + 1, (i) => _startWeek + i);
 
     final course = Course(
-      id: widget.existingCourse?.id,
-      name: _nameCtrl.text.trim(),
-      teacher: _teacherCtrl.text.trim(),
-      classroom: _classroomCtrl.text.trim(),
+      id: widget.course?.id,
+      name: _nameController.text.trim(),
+      teacher: _teacherController.text.trim(),
+      classroom: _classroomController.text.trim(),
       weekday: _weekday,
       startSection: _startSection,
       endSection: _endSection,
       weeks: weeks,
       weekType: _weekType,
-      remark: _remarkCtrl.text.trim(),
+      remark: _remarkController.text.trim(),
       colorIndex: _colorIndex,
-      remindMinutes: _remindMinutes,
     );
 
     final state = context.read<AppState>();
-    if (_isEdit) {
-      await state.updateCourse(course);
+    if (widget.course != null) {
+      state.updateCourse(course);
     } else {
-      await state.addCourse(course);
+      state.addCourse(course);
     }
-    if (mounted) Navigator.pop(context);
+    Navigator.pop(context);
   }
 
-  Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
+  void _delete() {
+    showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('删除课程'),
-        content: const Text('确定要删除这门课程吗？关联的作业也会被删除。'),
+        content: const Text('确定要删除这门课程吗？'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('删除', style: TextStyle(color: Colors.red))),
+            onPressed: () {
+              context.read<AppState>().deleteCourse(widget.course!.id!);
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text('删除',
+                style: TextStyle(color: Color(0xFFFF3B30))),
+          ),
         ],
       ),
     );
-    if (confirmed == true) {
-      await context.read<AppState>().deleteCourse(widget.existingCourse!.id);
-      if (mounted) Navigator.pop(context);
-    }
   }
 }
