@@ -41,6 +41,9 @@
     </array>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <!-- 禁用 Impeller，修复中文乱码 -->
+    <key>FLTEnableImpeller</key>
+    <false/>
     <!-- 本地通知权限 -->
     <key>NSUserNotificationsUsageDescription</key>
     <string>用于上课提醒和考试提醒</string>

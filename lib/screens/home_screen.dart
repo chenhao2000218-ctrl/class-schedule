@@ -70,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 16,
+            bottom: 8,
             child: SafeArea(
               top: false,
               child: _buildBottomBar(),
