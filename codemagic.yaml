@@ -9,9 +9,11 @@ workflows:
       vars:
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
+        # 在 Codemagic 环境变量中配置 GITHUB_TOKEN（有 repo 权限的 Personal Access Token）
     scripts:
       - name: Install dependencies
         script: flutter pub get
+
       - name: Build unsigned iOS
         script: |
           # 强制禁用代码签名
@@ -19,7 +21,7 @@ workflows:
           export CODE_SIGNING_REQUIRED=NO
           export CODE_SIGN_IDENTITY=""
 
-          # Flutter 3.24.0 的 --no-codesign 可以正常构建未签名包
+          # 构建未签名 IPA
           flutter build ios --release --no-codesign
 
           # 打包 IPA
@@ -29,26 +31,87 @@ workflows:
             cp -r "$APP_PATH" Payload/
             zip -r Runner-unsigned.ipa Payload
             rm -rf Payload
-            echo "IPA built successfully: $(pwd)/Runner-unsigned.ipa"
+            echo "IPA built successfully"
             ls -lh Runner-unsigned.ipa
           else
             echo "ERROR: Runner.app not found at $APP_PATH"
             find build/ios -name "Runner.app" -type d 2>/dev/null || true
             exit 1
           fi
+
+      - name: Deploy to GitHub Pages (OTA)
+        script: |
+          # 如果没有配置 GITHUB_TOKEN，跳过自动部署
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "GITHUB_TOKEN not set, skipping GitHub Pages deployment"
+            echo "请在 Codemagic 环境变量中配置 GITHUB_TOKEN 以启用应用内更新"
+            exit 0
+          fi
+
+          # 从 pubspec.yaml 读取版本号
+          VERSION=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: //' | tr -d ' ')
+          VER_NAME=$(echo "$VERSION" | cut -d'+' -f1)
+          BUILD_NUM=$(echo "$VERSION" | cut -d'+' -f2)
+          echo "Version: $VER_NAME ($BUILD_NUM)"
+
+          # 复制 IPA 到 docs 目录
+          cp Runner-unsigned.ipa docs/class_schedule.ipa
+
+          # 更新 version.json
+          cat > docs/version.json << EOF
+          {
+            "version": "$VER_NAME",
+            "build_number": $BUILD_NUM,
+            "title": "课程表",
+            "bundle_id": "com.example.classSchedule",
+            "manifest_url": "https://chenhao2000218-ctrl.github.io/class-schedule/manifest.plist",
+            "changelog": "版本更新"
+          }
+          EOF
+
+          # 更新 manifest.plist
+          cat > docs/manifest.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>items</key>
+              <array>
+                  <dict>
+                      <key>assets</key>
+                      <array>
+                          <dict>
+                              <key>kind</key>
+                              <string>software-package</string>
+                              <key>url</key>
+                              <string>https://chenhao2000218-ctrl.github.io/class-schedule/class_schedule.ipa</string>
+                          </dict>
+                      </array>
+                      <key>metadata</key>
+                      <dict>
+                          <key>bundle-identifier</key>
+                          <string>com.example.classSchedule</string>
+                          <key>bundle-version</key>
+                          <string>$VER_NAME</string>
+                          <key>kind</key>
+                          <string>software</string>
+                          <key>title</key>
+                          <string>课程表</string>
+                      </dict>
+                  </dict>
+              </array>
+          </dict>
+          </plist>
+          EOF
+
+          # 配置 git 并推送
+          git config user.name "Codemagic Bot"
+          git config user.email "bot@codemagic.io"
+          git add docs/
+          git commit -m "ci: 部署 v$VER_NAME ($BUILD_NUM) 到 GitHub Pages" || echo "No changes to commit"
+          git push https://$GITHUB_TOKEN@github.com/chenhao2000218-ctrl/class-schedule.git main
+
+          echo "Deployed to GitHub Pages successfully!"
+
     artifacts:
       - Runner-unsigned.ipa
-
-  android-debug:
-    name: Android Debug Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: 3.24.0
-    scripts:
-      - name: Install dependencies
-        script: flutter pub get
-      - name: Build Android APK
-        script: flutter build apk --debug
-    artifacts:
-      - build/app/outputs/flutter-apk/app-debug.apk

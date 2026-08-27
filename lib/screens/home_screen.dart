@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../services/update_service.dart';
 import '../widgets/week_timetable.dart';
 import '../widgets/glass_widgets.dart';
 import 'day_detail_screen.dart';
 import 'exam_screen.dart';
 import 'settings_screen.dart';
 import 'course_edit_screen.dart';
+
+// 当前应用版本（与 pubspec.yaml 保持一致）
+const String _currentVersion = '1.0.0+1';
 
 /// 主界面：悬浮胶囊玻璃底栏 + 平滑切换动画
 class HomeScreen extends StatefulWidget {
@@ -25,6 +29,20 @@ class _HomeScreenState extends State<HomeScreen> {
     ExamScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // 启动后延迟2秒检查更新（避免影响首屏渲染）
+    Future.delayed(const Duration(seconds: 2), _checkUpdate);
+  }
+
+  Future<void> _checkUpdate() async {
+    final info = await UpdateService.checkUpdate(_currentVersion);
+    if (info != null && mounted) {
+      showUpdateDialog(context, info);
+    }
+  }
 
   void _switchTab(int index) {
     if (index == _currentIndex) return;

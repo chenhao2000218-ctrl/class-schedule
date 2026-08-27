@@ -32,6 +32,8 @@ dependencies:
   uuid: ^4.2.1
   # 网络（ICS 链接导入）
   http: ^1.1.0
+  # 应用内更新（打开 OTA 安装链接）
+  url_launcher: ^6.2.0
 
 dev_dependencies:
   flutter_test:

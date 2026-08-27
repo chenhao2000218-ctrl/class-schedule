@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "build_number": 1,
+  "title": "课程表",
+  "bundle_id": "com.example.classSchedule",
+  "manifest_url": "https://chenhao2000218-ctrl.github.io/class-schedule/manifest.plist",
+  "changelog": "首个版本发布"
+}
