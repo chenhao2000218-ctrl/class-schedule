@@ -21,8 +21,11 @@ workflows:
           export CODE_SIGNING_REQUIRED=NO
           export CODE_SIGN_IDENTITY=""
 
-          # 构建未签名 IPA
-          flutter build ios --release --no-codesign
+          # 构建未签名 IPA，双重禁用 Impeller 修复中文乱码
+          flutter build ios --release --no-codesign --no-enable-impeller
+
+          # 构建后再次确认 Info.plist 中的禁用 Impeller 配置
+          /usr/libexec/PlistBuddy -c "Set :FLTEnableImpeller false" build/ios/iphoneos/Runner.app/Info.plist 2>/dev/null || true
 
           # 打包 IPA
           APP_PATH="build/ios/iphoneos/Runner.app"
