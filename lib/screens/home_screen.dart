@@ -10,7 +10,7 @@ import 'settings_screen.dart';
 import 'course_edit_screen.dart';
 
 // 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.0+1';
+const String _currentVersion = '1.0.1+2';
 
 /// 主界面：悬浮胶囊玻璃底栏 + 平滑切换动画
 class HomeScreen extends StatefulWidget {
@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 8,
+            bottom: 4,
             child: SafeArea(
               top: false,
               child: _buildBottomBar(),
@@ -103,20 +103,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBottomBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const tabCount = 3;
-    const verticalInset = 4.0; // 约1mm内缩
-    const horizontalInset = 4.0;
+    const inset = 3.0; // 统一内缩（约1mm）
 
     return GlassPillBar(
       padding: const EdgeInsets.symmetric(
-        horizontal: horizontalInset,
-        vertical: verticalInset,
+        horizontal: inset,
+        vertical: inset,
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tabWidth = constraints.maxWidth / tabCount;
-          // 指示器高度 = 内部可用高度（减去上下内缩后由padding控制）
-          // 这里用固定高度确保胶囊圆角一致
-          const indicatorHeight = 52.0;
+          const indicatorHeight = 50.0;
 
           return SizedBox(
             height: indicatorHeight,
@@ -133,13 +130,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: indicatorHeight,
                     alignment: Alignment.center,
                     child: Container(
-                      width: tabWidth - horizontalInset * 2,
+                      width: tabWidth - inset * 2,
                       height: indicatorHeight,
                       decoration: BoxDecoration(
                         color: isDark
                             ? Colors.white.withOpacity(0.18)
                             : const Color(0xFF007AFF).withOpacity(0.15),
-                        // 胶囊圆角 = 高度/2，和底栏形状一致
+                        // 完全胶囊圆角 = 高度/2，与底栏形状一致
                         borderRadius:
                             BorderRadius.circular(indicatorHeight / 2),
                       ),
@@ -269,7 +266,7 @@ class _ScheduleTabState extends State<_ScheduleTab> {
               // 右下角玻璃悬浮考试按钮（仅课表页显示）
               Positioned(
                 right: 16,
-                bottom: 100,
+                bottom: 90,
                 child: GlassPillButton(
                   icon: Icons.assignment,
                   label: '考试',
