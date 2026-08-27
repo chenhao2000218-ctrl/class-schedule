@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: 3.24.0
-      xcode: latest
+      xcode: 15.4
       groups:
         - default
       vars:

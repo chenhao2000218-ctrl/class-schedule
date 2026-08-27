@@ -11,7 +11,7 @@ import 'theme_screen.dart';
 import 'holiday_screen.dart';
 
 // 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.1+2';
+const String _currentVersion = '1.0.2+3';
 
 /// 设置页面 - iOS 分组列表风格
 class SettingsScreen extends StatelessWidget {
