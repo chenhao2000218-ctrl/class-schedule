@@ -4,28 +4,57 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      flutter: stable
+      flutter: 3.24.0
       xcode: latest
+      vars:
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
     scripts:
       - name: Install dependencies
         script: flutter pub get
       - name: Build unsigned iOS
         script: |
-          flutter build ios --release --no-codesign
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r Runner-unsigned.ipa Payload
-          rm -rf Payload
+          # 生成 Xcode 工程配置
+          flutter build ios --release --no-codesign --config-only
+
+          # 用 xcodebuild 直接构建，强制禁用所有代码签名
+          cd ios
+          xcodebuild build \
+            -scheme Runner \
+            -workspace Runner.xcworkspace \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -quiet
+
+          # 打包 IPA
+          cd ..
+          APP_PATH="build/ios/Release-iphoneos/Runner.app"
+          if [ -d "$APP_PATH" ]; then
+            mkdir -p Payload
+            cp -r "$APP_PATH" Payload/
+            zip -r Runner-unsigned.ipa Payload
+            rm -rf Payload
+            echo "IPA built successfully: $(pwd)/Runner-unsigned.ipa"
+          else
+            echo "ERROR: Runner.app not found at $APP_PATH"
+            ls -la build/ios/
+            exit 1
+          fi
     artifacts:
-      - build/ios/iphoneos/Runner-unsigned.ipa
+      - Runner-unsigned.ipa
 
   android-debug:
     name: Android Debug Build
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      flutter: stable
+      flutter: 3.24.0
     scripts:
       - name: Install dependencies
         script: flutter pub get
