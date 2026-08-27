@@ -6,6 +6,8 @@ workflows:
     environment:
       flutter: 3.24.0
       xcode: latest
+      groups:
+        - default
       vars:
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
