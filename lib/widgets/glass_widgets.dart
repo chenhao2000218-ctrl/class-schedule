@@ -142,7 +142,7 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
               child: Container(
                 color: isDark
                     ? Colors.white.withOpacity(0.05)
-                    : Colors.white.withOpacity(0.2),
+                    : Colors.white.withOpacity(0.12),
               ),
             ),
           ),
@@ -199,8 +199,8 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
         border: Border.all(
           color: isDark
               ? Colors.white.withOpacity(0.12)
-              : Colors.white.withOpacity(0.35),
-          width: 0.6,
+              : Colors.black.withOpacity(0.06),
+          width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
