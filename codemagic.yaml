@@ -17,6 +17,7 @@ workflows:
           set -e
           echo "P12_CERTIFICATE length: ${#P12_CERTIFICATE}"
           echo "P12_CERTIFICATE starts with: ${P12_CERTIFICATE:0:20}"
+          echo "P12_PASSWORD length: ${#P12_PASSWORD}"
           echo "$P12_CERTIFICATE" | tr -d '\n ' | base64 --decode > /tmp/cert.p12
           echo "Cert size: $(wc -c < /tmp/cert.p12) bytes"
           # 创建钥匙串（使用非空密码）
