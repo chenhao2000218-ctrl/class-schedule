@@ -15,13 +15,18 @@ workflows:
       - name: Import code signing
         script: |
           set -e
-          echo "$P12_CERTIFICATE" | base64 --decode > /tmp/cert.p12
-          security create-keychain -p "" build.keychain
-          security import /tmp/cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          echo "$MOBILEPROVISION" | base64 --decode > /tmp/profile.mobileprovision
+          echo "$P12_CERTIFICATE" | tr -d '\n ' | base64 --decode > /tmp/cert.p12
+          echo "Cert size: $(wc -c < /tmp/cert.p12) bytes"
+          # 创建钥匙串（使用非空密码）
+          security create-keychain -p "buildpass123" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security unlock-keychain -p "buildpass123" build.keychain
+          security list-keychains -d user -s build.keychain
+          # 导入证书（-A 允许所有应用访问）
+          security import /tmp/cert.p12 -k build.keychain -P "$P12_PASSWORD" -A
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "buildpass123" build.keychain
+          # 安装描述文件
+          echo "$MOBILEPROVISION" | tr -d '\n ' | base64 --decode > /tmp/profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
           security find-identity -v -p codesigning build.keychain
