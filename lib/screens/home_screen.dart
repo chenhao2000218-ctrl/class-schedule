@@ -10,7 +10,7 @@ import 'settings_screen.dart';
 import 'course_edit_screen.dart';
 
 // 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.4+5';
+const String _currentVersion = '1.0.5';
 
 /// 主界面：悬浮胶囊玻璃底栏 + 平滑切换动画
 class HomeScreen extends StatefulWidget {
@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 6,
+            bottom: 16,
             child: SafeArea(
               top: false,
               child: _buildBottomBar(),

@@ -11,7 +11,7 @@ import 'theme_screen.dart';
 import 'holiday_screen.dart';
 
 // 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.2+3';
+const String _currentVersion = '1.0.5';
 
 /// 设置页面 - iOS 分组列表风格
 class SettingsScreen extends StatelessWidget {
@@ -153,7 +153,7 @@ class SettingsScreen extends StatelessWidget {
                 _buildNavigationRow(
                   icon: Icons.system_update,
                   title: '检查更新',
-                  subtitle: '当前版本 $_currentVersion',
+                  subtitle: '当前版本 v$_currentVersion',
                   onTap: () async {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('正在检查更新...')),
