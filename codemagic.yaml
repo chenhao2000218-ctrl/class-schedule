@@ -15,26 +15,25 @@ workflows:
       - name: Import code signing
         script: |
           set -e
-          echo "P12_CERTIFICATE length: ${#P12_CERTIFICATE}"
-          echo "P12_CERTIFICATE starts with: ${P12_CERTIFICATE:0:20}"
-          echo "P12_PASSWORD length: ${#P12_PASSWORD}"
-          # 清理密码中的换行和空格
+          # 清理密码
           CLEAN_PASS=$(printf '%s' "$P12_PASSWORD" | tr -d '\n\r ')
-          echo "Clean password length: ${#CLEAN_PASS}"
+          # 解码证书和描述文件
           echo "$P12_CERTIFICATE" | tr -d '\n ' | base64 --decode > /tmp/cert.p12
+          echo "$MOBILEPROVISION" | tr -d '\n ' | base64 --decode > /tmp/profile.mobileprovision
           echo "Cert size: $(wc -c < /tmp/cert.p12) bytes"
-          # 用 openssl 验证密码
-          openssl pkcs12 -in /tmp/cert.p12 -nokeys -passin pass:"$CLEAN_PASS" 2>&1 | head -3
-          # 创建钥匙串（使用非空密码）
+          # 创建钥匙串
           security create-keychain -p "buildpass123" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
           security unlock-keychain -p "buildpass123" build.keychain
           security list-keychains -d user -s build.keychain
-          # 导入证书（-A 允许所有应用访问）
-          security import /tmp/cert.p12 -k build.keychain -P "$CLEAN_PASS" -A
+          # 导入证书：先试直接导入，失败则转pem再导入
+          security import /tmp/cert.p12 -k build.keychain -P "$CLEAN_PASS" -f pkcs12 -A 2>&1 || {
+            echo "Direct import failed, converting to PEM..."
+            openssl pkcs12 -in /tmp/cert.p12 -out /tmp/cert.pem -nodes -passin pass:"$CLEAN_PASS"
+            security import /tmp/cert.pem -k build.keychain -A
+          }
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "buildpass123" build.keychain
           # 安装描述文件
-          echo "$MOBILEPROVISION" | tr -d '\n ' | base64 --decode > /tmp/profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
           security find-identity -v -p codesigning build.keychain
