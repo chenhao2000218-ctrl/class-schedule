@@ -233,6 +233,7 @@ class AppState extends ChangeNotifier {
       _courses,
       _settings.timeSlots,
       _settings,
+      currentWeek: _currentWeek,
     );
   }
 

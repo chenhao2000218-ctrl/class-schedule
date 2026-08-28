@@ -1,67 +1,62 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 import '../models/course.dart';
 import '../models/time_slot.dart';
 import '../models/app_settings.dart';
-import '../utils/date_utils.dart';
 
-/// 桌面小组件数据服务
-/// 通过 App Group 共享目录将今日课程数据写入 JSON，供 iOS WidgetKit 读取
+/// 桌面小组件数据共享服务
+/// 通过 App Group 将课表数据写入 UserDefaults，供 iOS Widget 读取
 class WidgetService {
-  // iOS App Group ID，需与 Xcode 中配置一致
-  static const String appGroupId = 'group.com.example.classschedule';
+  static const MethodChannel _channel =
+      MethodChannel('com.example.classSchedule/widget');
 
-  /// 更新小组件数据：写入今日课程列表到共享目录
+  static const String _appGroup = 'group.com.example.classSchedule';
+
+  /// 更新小组件数据
+  /// 在课表数据变化时调用
   Future<void> updateWidgetData(
     List<Course> courses,
     List<TimeSlot> timeSlots,
-    AppSettings settings,
-  ) async {
-    final now = DateTime.now();
-    final currentWeek = AppDateUtils.currentWeek(settings);
-
-    // 获取今日课程（考虑假期和调休）
-    final todayCourses = courses
-        .where((c) =>
-            c.weekday == now.weekday && c.hasClassOnWeek(currentWeek))
-        .toList()
-      ..sort((a, b) => a.startSection.compareTo(b.startSection));
-
-    // 转换为小组件可用的精简数据
-    final widgetData = {
-      'date': AppDateUtils.formatDate(now),
-      'week': currentWeek,
-      'courses': todayCourses.map((c) {
-        final slot = timeSlots.firstWhere(
-          (s) => s.section == c.startSection,
-          orElse: () =>
-              TimeSlot(section: 1, startTime: '08:00', endTime: '08:45'),
-        );
-        return {
-          'name': c.name,
-          'teacher': c.teacher,
-          'classroom': c.classroom,
-          'startTime': slot.startTime,
-          'endTime': timeSlots
-                  .firstWhere(
-                    (s) => s.section == c.endSection,
-                    orElse: () => slot,
-                  )
-                  .endTime,
-          'color': c.colorIndex,
-        };
-      }).toList(),
-    };
-
+    AppSettings settings, {
+    int currentWeek = 1,
+  }) async {
     try {
-      final directory = await getApplicationSupportDirectory();
-      // iOS: 通过 App Group 共享
-      // 实际路径由原生层决定，这里写入应用沙盒，原生层通过 App Group 桥接
-      final file = File('${directory.path}/widget_data.json');
-      await file.writeAsString(jsonEncode(widgetData));
+      final data = {
+        'courses': courses
+            .map((c) => {
+                  'name': c.name,
+                  'teacher': c.teacher,
+                  'classroom': c.classroom,
+                  'weekday': c.weekday,
+                  'startSection': c.startSection,
+                  'endSection': c.endSection,
+                  'colorIndex': c.colorIndex,
+                })
+            .toList(),
+        'currentWeek': currentWeek,
+        'totalWeeks': settings.totalWeeks,
+        'semesterStart': settings.semesterStart.toIso8601String(),
+        'showWeekend': settings.showWeekend,
+        'timeSlots': timeSlots
+            .map((t) => {
+                  'section': t.section,
+                  'startTime': t.startTime,
+                  'endTime': t.endTime,
+                })
+            .toList(),
+      };
+
+      final jsonStr = jsonEncode(data);
+      await _channel.invokeMethod('updateWidgetData', {
+        'appGroup': _appGroup,
+        'key': 'widget_data',
+        'value': jsonStr,
+      });
+
+      // 立即刷新小组件
+      await _channel.invokeMethod('reloadWidgets', {'kind': 'ScheduleWidget'});
     } catch (_) {
-      // 小组件数据更新失败不影响主应用
+      // 静默失败，不影响主应用
     }
   }
 }

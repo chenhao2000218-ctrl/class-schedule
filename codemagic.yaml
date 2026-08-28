@@ -12,6 +12,16 @@ workflows:
       - name: Install dependencies
         script: flutter pub get
 
+      - name: Setup Widget Extension
+        script: |
+          set -e
+          # 安装 xcodeproj gem
+          gem install xcodeproj --no-document 2>/dev/null || true
+          # 运行脚本添加 Widget Extension
+          ruby ios/add_widget_extension.rb
+          # 重新生成 podfile
+          cd ios && pod install && cd ..
+
       - name: Import code signing
         script: |
           set -e

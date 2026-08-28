@@ -96,74 +96,143 @@ class UpdateInfo {
   });
 }
 
-/// 显示更新对话框
-Future<void> showUpdateDialog(
+/// 显示更新提示（顶部柔和横幅，不打断操作）
+void showUpdateBanner(
   BuildContext context,
   UpdateInfo info,
-) async {
+) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
+  final overlay = Overlay.of(context);
+  late OverlayEntry entry;
 
-  return showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: Row(
-        children: [
-          Icon(Icons.system_update,
-              color: isDark ? Colors.white : const Color(0xFF007AFF)),
-          const SizedBox(width: 8),
-          const Text('发现新版本'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'v${info.version} (${info.buildNumber})',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
-          ),
-          if (info.changelog.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Text(
-              '更新内容：',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              info.changelog,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: isDark ? Colors.white70 : Colors.black87,
+  entry = OverlayEntry(
+    builder: (ctx) => Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        bottom: false,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: -100, end: 0),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          builder: (context, offset, child) {
+            return Transform.translate(
+              offset: Offset(0, offset),
+              child: child,
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1C1C1E).withOpacity(0.95)
+                    : Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.05),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF007AFF).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.system_update,
+                            size: 20, color: Color(0xFF007AFF)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '发现新版本 v${info.version}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '点击更新 · ${info.changelog.isEmpty ? '体验优化' : info.changelog}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? Colors.white60
+                                    : Colors.black54,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          entry.remove();
+                          UpdateService.installUpdate(info.manifestUrl);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF007AFF),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '更新',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => entry.remove(),
+                        child: Icon(Icons.close,
+                            size: 18,
+                            color: isDark
+                                ? Colors.white38
+                                : Colors.black38),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-          const SizedBox(height: 12),
-          Text(
-            '点击更新后将跳转到 Safari 安装，安装完成后打开即为新版本。',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           ),
-        ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('稍后'),
-        ),
-        FilledButton(
-          onPressed: () async {
-            Navigator.pop(ctx);
-            await UpdateService.installUpdate(info.manifestUrl);
-          },
-          child: const Text('立即更新'),
-        ),
-      ],
     ),
   );
+
+  overlay.insert(entry);
+  // 8秒后自动消失
+  Future.delayed(const Duration(seconds: 8), () {
+    if (entry.mounted) entry.remove();
+  });
 }
