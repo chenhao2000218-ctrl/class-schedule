@@ -12,273 +12,55 @@ workflows:
       - name: Install dependencies
         script: flutter pub get
 
-      - name: Import code signing identity
+      - name: Import code signing
         script: |
-          # 解码证书
+          set -e
           echo "$P12_CERTIFICATE" | base64 --decode > /tmp/cert.p12
-
-          # 创建钥匙串并导入证书
           security create-keychain -p "" build.keychain
           security import /tmp/cert.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
-
-          # 解码并安装描述文件
           echo "$MOBILEPROVISION" | base64 --decode > /tmp/profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
-
-          echo "Code signing identity imported successfully"
           security find-identity -v -p codesigning build.keychain
 
       - name: Build signed iOS
         script: |
-          # 生成 Xcode 工程配置
+          set -e
           flutter build ios --release --no-codesign --config-only
-
-          # 用 xcodebuild 构建并签名
           cd ios
-          xcodebuild build \
-            -scheme Runner \
-            -workspace Runner.xcworkspace \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath ../build/ios-derived \
-            CODE_SIGN_IDENTITY="Apple Distribution: Alice Hobler (6M5UL7G6A7)" \
-            CODE_SIGNING_REQUIRED=YES \
-            CODE_SIGNING_ALLOWED=YES \
-            -quiet
-
+          xcodebuild build -scheme Runner -workspace Runner.xcworkspace -configuration Release -destination 'generic/platform=iOS' -derivedDataPath ../build/ios-derived CODE_SIGN_IDENTITY="Apple Distribution: Alice Hobler (6M5UL7G6A7)" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES -quiet
           cd ..
           APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/Runner.app"
+          /usr/libexec/PlistBuddy -c "Add :FLTEnableImpeller bool false" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :FLTEnableImpeller false" "$APP_PATH/Info.plist" 2>/dev/null || true
+          codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" "$APP_PATH"
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r Runner-signed.ipa Payload
+          rm -rf Payload
+          ls -lh Runner-signed.ipa
 
-          if [ -d "$APP_PATH" ]; then
-            # 禁用 Impeller
-            /usr/libexec/PlistBuddy -c "Add :FLTEnableImpeller bool false" "$APP_PATH/Info.plist" 2>/dev/null || \
-            /usr/libexec/PlistBuddy -c "Set :FLTEnableImpeller false" "$APP_PATH/Info.plist" 2>/dev/null || true
-
-            # 重新签名（修改 Info.plist 后需要重签）
-            codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements ios/Runner/Runner.entitlements "$APP_PATH" 2>/dev/null || \
-            codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" "$APP_PATH"
-
-            mkdir -p Payload
-            cp -r "$APP_PATH" Payload/
-            zip -r Runner-signed.ipa Payload
-            rm -rf Payload
-            echo "Signed IPA built successfully"
-            ls -lh Runner-signed.ipa
-          else
-            echo "ERROR: Runner.app not found at $APP_PATH"
-            find build -name "Runner.app" -type d 2>/dev/null || true
-            exit 1
-          fi
-
-      - name: Deploy to GitHub Pages (OTA)
+      - name: Deploy to GitHub Pages
         script: |
+          set -e
           if [ -z "$GITHUB_TOKEN" ]; then
-            echo "GITHUB_TOKEN not set, skipping deployment"
+            echo "No GITHUB_TOKEN, skip deploy"
             exit 0
           fi
-
           VERSION=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: //' | tr -d ' ')
           VER_NAME=$(echo "$VERSION" | cut -d'+' -f1)
           BUILD_NUM=$(echo "$VERSION" | cut -d'+' -f2)
-          echo "Version: $VER_NAME ($BUILD_NUM)"
-
           cp Runner-signed.ipa docs/class_schedule.ipa
-
-          cat > docs/version.json << EOF
-          {
-            "version": "$VER_NAME",
-            "build_number": $BUILD_NUM,
-            "title": "课程表",
-            "bundle_id": "com.example.classSchedule",
-            "manifest_url": "https://chenhao2000218-ctrl.github.io/class-schedule/manifest.plist",
-            "changelog": "版本更新"
-          }
-          EOF
-
-          cat > docs/manifest.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>items</key>
-              <array>
-                  <dict>
-                      <key>assets</key>
-                      <array>
-                          <dict>
-                              <key>kind</key>
-                              <string>software-package</string>
-                              <key>url</key>
-                              <string>https://chenhao2000218-ctrl.github.io/class-schedule/class_schedule.ipa</string>
-                          </dict>
-                      </array>
-                      <key>metadata</key>
-                      <dict>
-                          <key>bundle-identifier</key>
-                          <string>com.example.classSchedule</string>
-                          <key>bundle-version</key>
-                          <string>$VER_NAME</string>
-                          <key>kind</key>
-                          <string>software</string>
-                          <key>title</key>
-                          <string>课程表</string>
-                      </dict>
-                  </dict>
-              </array>
-          </dict>
-          </plist>
-          EOF
-
+          printf '{\n  "version": "%s",\n  "build_number": %s,\n  "title": "课程表",\n  "bundle_id": "com.example.classSchedule",\n  "manifest_url": "https://chenhao2000218-ctrl.github.io/class-schedule/manifest.plist",\n  "changelog": "版本更新"\n}\n' "$VER_NAME" "$BUILD_NUM" > docs/version.json
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>items</key>\n  <array>\n    <dict>\n      <key>assets</key>\n      <array>\n        <dict>\n          <key>kind</key>\n          <string>software-package</string>\n          <key>url</key>\n          <string>https://chenhao2000218-ctrl.github.io/class-schedule/class_schedule.ipa</string>\n        </dict>\n      </array>\n      <key>metadata</key>\n      <dict>\n        <key>bundle-identifier</key>\n        <string>com.example.classSchedule</string>\n        <key>bundle-version</key>\n        <string>%s</string>\n        <key>kind</key>\n        <string>software</string>\n        <key>title</key>\n        <string>课程表</string>\n      </dict>\n    </dict>\n  </array>\n</dict>\n</plist>\n' "$VER_NAME" > docs/manifest.plist
           git config user.name "Codemagic Bot"
           git config user.email "bot@codemagic.io"
           git add docs/
-          git commit -m "ci: 部署已签名 v$VER_NAME ($BUILD_NUM) 到 GitHub Pages" || echo "No changes to commit"
+          git commit -m "ci: deploy signed v$VER_NAME ($BUILD_NUM)" || echo "No changes"
           git push https://$GITHUB_TOKEN@github.com/chenhao2000218-ctrl/class-schedule.git main
-          echo "Deployed successfully!"
+          echo "Deployed!"
 
     artifacts:
       - Runner-signed.ipa
-
-  ios-unsigned:
-    name: iOS Unsigned Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: 3.27.0
-      xcode: latest
-      groups:
-        - default
-      vars:
-        CODE_SIGNING_ALLOWED: "NO"
-        CODE_SIGNING_REQUIRED: "NO"
-        # 在 Codemagic 环境变量中配置 GITHUB_TOKEN（有 repo 权限的 Personal Access Token）
-    scripts:
-      - name: Install dependencies
-        script: flutter pub get
-
-      - name: Build unsigned iOS
-        script: |
-          # 强制禁用代码签名
-          export CODE_SIGNING_ALLOWED=NO
-          export CODE_SIGNING_REQUIRED=NO
-          export CODE_SIGN_IDENTITY=""
-
-          # 生成 Xcode 工程配置
-          flutter build ios --release --no-codesign --config-only
-
-          # 用 xcodebuild 直接构建，强制禁用代码签名，指定产物路径
-          cd ios
-          xcodebuild build \
-            -scheme Runner \
-            -workspace Runner.xcworkspace \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath ../build/ios-derived \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS="" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            -quiet
-
-          cd ..
-          # xcodebuild 产物路径
-          APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/Runner.app"
-
-          if [ -d "$APP_PATH" ]; then
-            # 打包前强制写入禁用 Impeller
-            /usr/libexec/PlistBuddy -c "Add :FLTEnableImpeller bool false" "$APP_PATH/Info.plist" 2>/dev/null || \
-            /usr/libexec/PlistBuddy -c "Set :FLTEnableImpeller false" "$APP_PATH/Info.plist" 2>/dev/null || true
-
-            mkdir -p Payload
-            cp -r "$APP_PATH" Payload/
-            zip -r Runner-unsigned.ipa Payload
-            rm -rf Payload
-            echo "IPA built successfully"
-            ls -lh Runner-unsigned.ipa
-          else
-            echo "ERROR: Runner.app not found at $APP_PATH"
-            find build -name "Runner.app" -type d 2>/dev/null || true
-            exit 1
-          fi
-
-      - name: Deploy to GitHub Pages (OTA)
-        script: |
-          # 如果没有配置 GITHUB_TOKEN，跳过自动部署
-          if [ -z "$GITHUB_TOKEN" ]; then
-            echo "GITHUB_TOKEN not set, skipping GitHub Pages deployment"
-            echo "请在 Codemagic 环境变量中配置 GITHUB_TOKEN 以启用应用内更新"
-            exit 0
-          fi
-
-          # 从 pubspec.yaml 读取版本号
-          VERSION=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: //' | tr -d ' ')
-          VER_NAME=$(echo "$VERSION" | cut -d'+' -f1)
-          BUILD_NUM=$(echo "$VERSION" | cut -d'+' -f2)
-          echo "Version: $VER_NAME ($BUILD_NUM)"
-
-          # 复制 IPA 到 docs 目录
-          cp Runner-unsigned.ipa docs/class_schedule.ipa
-
-          # 更新 version.json
-          cat > docs/version.json << EOF
-          {
-            "version": "$VER_NAME",
-            "build_number": $BUILD_NUM,
-            "title": "课程表",
-            "bundle_id": "com.example.classSchedule",
-            "manifest_url": "https://chenhao2000218-ctrl.github.io/class-schedule/manifest.plist",
-            "changelog": "版本更新"
-          }
-          EOF
-
-          # 更新 manifest.plist
-          cat > docs/manifest.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>items</key>
-              <array>
-                  <dict>
-                      <key>assets</key>
-                      <array>
-                          <dict>
-                              <key>kind</key>
-                              <string>software-package</string>
-                              <key>url</key>
-                              <string>https://chenhao2000218-ctrl.github.io/class-schedule/class_schedule.ipa</string>
-                          </dict>
-                      </array>
-                      <key>metadata</key>
-                      <dict>
-                          <key>bundle-identifier</key>
-                          <string>com.example.classSchedule</string>
-                          <key>bundle-version</key>
-                          <string>$VER_NAME</string>
-                          <key>kind</key>
-                          <string>software</string>
-                          <key>title</key>
-                          <string>课程表</string>
-                      </dict>
-                  </dict>
-              </array>
-          </dict>
-          </plist>
-          EOF
-
-          # 配置 git 并推送
-          git config user.name "Codemagic Bot"
-          git config user.email "bot@codemagic.io"
-          git add docs/
-          git commit -m "ci: 部署 v$VER_NAME ($BUILD_NUM) 到 GitHub Pages" || echo "No changes to commit"
-          git push https://$GITHUB_TOKEN@github.com/chenhao2000218-ctrl/class-schedule.git main
-
-          echo "Deployed to GitHub Pages successfully!"
-
-    artifacts:
-      - Runner-unsigned.ipa
