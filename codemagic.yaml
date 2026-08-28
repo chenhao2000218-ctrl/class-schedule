@@ -43,7 +43,7 @@ workflows:
           set -e
           flutter build ios --release --no-codesign --config-only
           cd ios
-          # 构建时全部跳过签名（包括Pods），最后手动签名
+          # 构建时全部跳过签名
           xcodebuild build \
             -scheme Runner \
             -workspace Runner.xcworkspace \
@@ -56,14 +56,28 @@ workflows:
             -quiet
           cd ..
           APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/Runner.app"
+          
+          # 从描述文件提取 entitlements
+          security cms -D -i /tmp/profile.mobileprovision > /tmp/profile.plist
+          plutil -extract Entitlements xml1 -o /tmp/entitlements.plist /tmp/profile.plist
+          echo "Entitlements extracted"
+          
           # 嵌入描述文件
           cp /tmp/profile.mobileprovision "$APP_PATH/embedded.mobileprovision"
+          
           # 禁用 Impeller
           /usr/libexec/PlistBuddy -c "Add :FLTEnableImpeller bool false" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :FLTEnableImpeller false" "$APP_PATH/Info.plist" 2>/dev/null || true
-          # 手动签名主应用（递归签名所有framework）
-          codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --deep "$APP_PATH"
+          
+          # 先签名所有 nested frameworks（从内到外）
+          find "$APP_PATH/Frameworks" -name "*.framework" -type d | while read fw; do
+            codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" "$fw"
+          done
+          # 再签名主 app，带 entitlements
+          codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements /tmp/entitlements.plist "$APP_PATH"
+          
           echo "Signed successfully"
           codesign -dv "$APP_PATH" 2>&1 | head -5
+          
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r Runner-signed.ipa Payload
