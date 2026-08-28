@@ -76,7 +76,7 @@ embed_app_extensions = main_target.build_phases.find { |p| p.is_a?(Xcodeproj::Pr
 unless embed_app_extensions
   embed_app_extensions = main_target.new_copy_files_build_phase
   embed_app_extensions.name = 'Embed App Extensions'
-  embed_app_extensions.symbol_dst_subfolder_spec = :app_extensions
+  embed_app_extensions.dst_subfolder_spec = '13'
 end
 
 widget_product = widget_target.product_reference
