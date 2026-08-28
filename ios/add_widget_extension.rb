@@ -31,14 +31,15 @@ end
 
 # 设置 Widget target 的配置
 widget_target.build_configurations.each do |config|
+  config.build_settings['PRODUCT_NAME'] = 'ScheduleWidget'
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.example.classSchedule.ScheduleWidget'
   config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['TARGETED_DEVICE_FAMILY'] = '1,2'
-  config.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
   config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
   config.build_settings['INFOPLIST_KEY_CFBundleDisplayName'] = '课程表'
-  config.build_settings['INFOPLIST_KEY_NSHumanReadableCopyright'] = ''
+  config.build_settings['WRAPPER_EXTENSION'] = 'appex'
+  config.build_settings['SKIP_INSTALL'] = 'YES'
 end
 
 # 创建 Widget entitlements
