@@ -8,11 +8,6 @@ workflows:
       xcode: latest
       groups:
         - default
-      vars:
-        # 证书密码和 base64 在 Codemagic 环境变量中配置：
-        # P12_CERTIFICATE: .p12 证书的 base64
-        # P12_PASSWORD: 证书密码
-        # MOBILEPROVISION: .mobileprovision 描述文件的 base64
     scripts:
       - name: Install dependencies
         script: flutter pub get
