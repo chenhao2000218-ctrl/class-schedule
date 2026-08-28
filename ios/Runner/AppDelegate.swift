@@ -34,8 +34,10 @@ import WidgetKit
         } else if call.method == "reloadWidgets",
                   let args = call.arguments as? [String: Any],
                   let kind = args["kind"] as? String {
-          // 刷新指定 kind 的小组件
-          WidgetCenter.shared.reloadTimelines(ofKind: kind)
+          // 刷新指定 kind 的小组件（iOS 14+）
+          if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadTimelines(ofKind: kind)
+          }
           result(nil)
         } else {
           result(FlutterMethodNotImplemented)
