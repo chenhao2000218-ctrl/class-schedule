@@ -71,20 +71,14 @@ if File.exist?(File.join('ios', main_entitlements))
   end
 end
 
-# 嵌入 Widget 到主应用
-embed_frameworks = main_target.frameworks_build_phase
-embed_app_extensions = main_target.build_phases.find { |p| p.is_a?(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase) && p.name == 'Embed App Extensions' }
-unless embed_app_extensions
-  embed_app_extensions = main_target.new_copy_files_build_phase
-  embed_app_extensions.name = 'Embed App Extensions'
-  embed_app_extensions.dst_subfolder_spec = '13'
-end
-
+# 嵌入 Widget 到主应用（标准方式：添加依赖 + Frameworks phase）
 widget_product = widget_target.product_reference
-embed_app_extensions.add_file_reference(widget_product)
-
-# 添加依赖关系
 main_target.add_dependency(widget_target)
+
+# 添加到 Frameworks build phase（自动嵌入到 PlugIns）
+frameworks_phase = main_target.frameworks_build_phase
+build_file = frameworks_phase.add_file_reference(widget_product)
+build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy', 'CodeSignOnCopy'] }
 
 project.save
 puts "Widget Extension added successfully!"
