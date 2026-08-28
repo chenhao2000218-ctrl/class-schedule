@@ -18,15 +18,20 @@ workflows:
           echo "P12_CERTIFICATE length: ${#P12_CERTIFICATE}"
           echo "P12_CERTIFICATE starts with: ${P12_CERTIFICATE:0:20}"
           echo "P12_PASSWORD length: ${#P12_PASSWORD}"
+          # 清理密码中的换行和空格
+          CLEAN_PASS=$(printf '%s' "$P12_PASSWORD" | tr -d '\n\r ')
+          echo "Clean password length: ${#CLEAN_PASS}"
           echo "$P12_CERTIFICATE" | tr -d '\n ' | base64 --decode > /tmp/cert.p12
           echo "Cert size: $(wc -c < /tmp/cert.p12) bytes"
+          # 用 openssl 验证密码
+          openssl pkcs12 -in /tmp/cert.p12 -nokeys -passin pass:"$CLEAN_PASS" 2>&1 | head -3
           # 创建钥匙串（使用非空密码）
           security create-keychain -p "buildpass123" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
           security unlock-keychain -p "buildpass123" build.keychain
           security list-keychains -d user -s build.keychain
           # 导入证书（-A 允许所有应用访问）
-          security import /tmp/cert.p12 -k build.keychain -P "$P12_PASSWORD" -A
+          security import /tmp/cert.p12 -k build.keychain -P "$CLEAN_PASS" -A
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "buildpass123" build.keychain
           # 安装描述文件
           echo "$MOBILEPROVISION" | tr -d '\n ' | base64 --decode > /tmp/profile.mobileprovision
