@@ -141,8 +141,8 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
               ),
               child: Container(
                 color: isDark
-                    ? Colors.white.withOpacity(0.08)
-                    : Colors.white.withOpacity(0.25),
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.white.withOpacity(0.2),
               ),
             ),
           ),
@@ -198,16 +198,16 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
         borderRadius: BorderRadius.circular(widget.borderRadius),
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.18)
-              : Colors.white.withOpacity(0.45),
-          width: 0.8,
+              ? Colors.white.withOpacity(0.12)
+              : Colors.white.withOpacity(0.35),
+          width: 0.6,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.35 : 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-            spreadRadius: -5,
+            color: Colors.black.withOpacity(isDark ? 0.25 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: -3,
           ),
         ],
         gradient: _hovered
@@ -304,10 +304,10 @@ class GlassCircleButton extends StatelessWidget {
 
     return LiquidGlassContainer(
       borderRadius: size / 2,
-      displacementScale: 18,
-      aberration: 0.3,
-      edgeWidth: 0.2,
-      blurAmount: 10,
+      displacementScale: 12,
+      aberration: 0.2,
+      edgeWidth: 0.15,
+      blurAmount: 8,
       onTap: onPressed,
       padding: EdgeInsets.zero,
       child: SizedBox(
@@ -338,10 +338,10 @@ class GlassPillButton extends StatelessWidget {
 
     return LiquidGlassContainer(
       borderRadius: 999,
-      displacementScale: 18,
-      aberration: 0.3,
-      edgeWidth: 0.18,
-      blurAmount: 10,
+      displacementScale: 12,
+      aberration: 0.2,
+      edgeWidth: 0.12,
+      blurAmount: 8,
       onTap: onPressed,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       child: Row(

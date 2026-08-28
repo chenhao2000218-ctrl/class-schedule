@@ -10,7 +10,7 @@ import 'settings_screen.dart';
 import 'course_edit_screen.dart';
 
 // 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.2+3';
+const String _currentVersion = '1.0.3+4';
 
 /// 主界面：悬浮胶囊玻璃底栏 + 平滑切换动画
 class HomeScreen extends StatefulWidget {
@@ -88,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 2,
+            bottom: 6,
             child: SafeArea(
               top: false,
               child: _buildBottomBar(),
@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tabWidth = constraints.maxWidth / tabCount;
-          const indicatorHeight = 56.0;
+          const indicatorHeight = 60.0;
 
           return SizedBox(
             height: indicatorHeight,

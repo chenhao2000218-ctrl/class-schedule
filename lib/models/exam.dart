@@ -9,6 +9,7 @@ class Exam {
   String location; // 考场
   String remark; // 备注
   bool remind; // 是否提醒
+  bool isPinned; // 是否置顶
 
   Exam({
     String? id,
@@ -18,6 +19,7 @@ class Exam {
     this.location = '',
     this.remark = '',
     this.remind = true,
+    this.isPinned = false,
   }) : id = id ?? uuid();
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +30,7 @@ class Exam {
         'location': location,
         'remark': remark,
         'remind': remind,
+        'isPinned': isPinned,
       };
 
   factory Exam.fromJson(Map<String, dynamic> json) => Exam(
@@ -38,5 +41,6 @@ class Exam {
         location: json['location'] ?? '',
         remark: json['remark'] ?? '',
         remind: json['remind'] ?? true,
+        isPinned: json['isPinned'] ?? false,
       );
 }
