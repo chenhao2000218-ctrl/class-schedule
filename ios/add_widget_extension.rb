@@ -6,7 +6,7 @@ require 'xcodeproj'
 require 'fileutils'
 
 project_path = 'ios/Runner.xcodeproj'
-widget_dir = 'ios/Widget'
+widget_dir = 'Widget'  # 相对于 ios/ 目录
 
 # 打开项目
 project = Xcodeproj::Project.open(project_path)
@@ -43,8 +43,8 @@ widget_target.build_configurations.each do |config|
 end
 
 # 创建 Widget entitlements
-widget_entitlements = 'ios/Widget/ScheduleWidget.entitlements'
-File.write(widget_entitlements, <<~PLIST)
+widget_entitlements = 'Widget/ScheduleWidget.entitlements'
+File.write(File.join('ios', widget_entitlements), <<~PLIST)
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -64,8 +64,8 @@ widget_target.build_configurations.each do |config|
 end
 
 # 主应用也添加 App Group entitlements
-main_entitlements = 'ios/Runner/Runner.entitlements'
-if File.exist?(main_entitlements)
+main_entitlements = 'Runner/Runner.entitlements'
+if File.exist?(File.join('ios', main_entitlements))
   main_target.build_configurations.each do |config|
     config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/Runner.entitlements'
   end
