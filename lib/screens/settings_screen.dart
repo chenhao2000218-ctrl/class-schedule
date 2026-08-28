@@ -162,7 +162,7 @@ class SettingsScreen extends StatelessWidget {
                         await UpdateService.checkUpdate(_currentVersion);
                     if (context.mounted) {
                       if (info != null) {
-                        showUpdateDialog(context, info);
+                        showUpdateBanner(context, info);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('已是最新版本')),
