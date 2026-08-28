@@ -43,11 +43,27 @@ workflows:
           set -e
           flutter build ios --release --no-codesign --config-only
           cd ios
-          xcodebuild build -scheme Runner -workspace Runner.xcworkspace -configuration Release -destination 'generic/platform=iOS' -derivedDataPath ../build/ios-derived CODE_SIGN_IDENTITY="Apple Distribution: Alice Hobler (6M5UL7G6A7)" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES -quiet
+          # 构建时全部跳过签名（包括Pods），最后手动签名
+          xcodebuild build \
+            -scheme Runner \
+            -workspace Runner.xcworkspace \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ../build/ios-derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            -quiet
           cd ..
           APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/Runner.app"
+          # 嵌入描述文件
+          cp /tmp/profile.mobileprovision "$APP_PATH/embedded.mobileprovision"
+          # 禁用 Impeller
           /usr/libexec/PlistBuddy -c "Add :FLTEnableImpeller bool false" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :FLTEnableImpeller false" "$APP_PATH/Info.plist" 2>/dev/null || true
-          codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" "$APP_PATH"
+          # 手动签名主应用（递归签名所有framework）
+          codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --deep "$APP_PATH"
+          echo "Signed successfully"
+          codesign -dv "$APP_PATH" 2>&1 | head -5
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r Runner-signed.ipa Payload
