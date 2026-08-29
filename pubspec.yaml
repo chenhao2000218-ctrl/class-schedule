@@ -1,7 +1,7 @@
 name: class_schedule
 description: 纯净无广告的大学课程表 App
 publish_to: 'none'
-version: 1.0.5+6
+version: 1.0.6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
