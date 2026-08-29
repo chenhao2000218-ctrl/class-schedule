@@ -162,14 +162,20 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
   @override
   void initState() {
     super.initState();
-    _timeController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..repeat();
+    // 只有启用折射时才启动动画控制器，避免不必要的持续重绘
     if (widget.enableRefraction) {
+      _timeController = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 10),
+      )..repeat();
       _loadProgram().then((p) {
         if (mounted) setState(() => _program = p);
       });
+    } else {
+      _timeController = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 1),
+      );
     }
 
     // 动态高光：监听传感器

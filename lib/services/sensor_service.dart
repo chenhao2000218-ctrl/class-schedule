@@ -15,11 +15,18 @@ class SensorService {
 
   StreamSubscription? _accelSub;
   final List<void Function(double x, double y)> _listeners = [];
+  DateTime _lastUpdate = DateTime.now();
+  static const _minInterval = Duration(milliseconds: 100); // 节流：最多10fps
 
   /// 启动监听
   void start() {
     if (_accelSub != null) return;
     _accelSub = accelerometerEventStream().listen((event) {
+      // 节流，避免频繁重绘导致文字渲染异常
+      final now = DateTime.now();
+      if (now.difference(_lastUpdate) < _minInterval) return;
+      _lastUpdate = now;
+
       // 归一化到 -1.0 ~ 1.0
       _tiltX = (event.x / 9.8).clamp(-1.0, 1.0);
       _tiltY = (event.y / 9.8).clamp(-1.0, 1.0);
