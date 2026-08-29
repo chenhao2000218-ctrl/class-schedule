@@ -66,6 +66,17 @@ workflows:
             -quiet
           cd ..
           APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/Runner.app"
+          WIDGET_PATH="build/ios-derived/Build/Products/Release-iphoneos/ScheduleWidget.appex"
+          
+          # 手动嵌入 Widget Extension 到 PlugIns（避免 Xcode 26 循环依赖）
+          if [ -d "$WIDGET_PATH" ]; then
+            mkdir -p "$APP_PATH/PlugIns"
+            cp -r "$WIDGET_PATH" "$APP_PATH/PlugIns/"
+            echo "Widget embedded to PlugIns"
+          else
+            echo "WARNING: ScheduleWidget.appex not found at $WIDGET_PATH"
+            ls -la build/ios-derived/Build/Products/Release-iphoneos/ | head -20
+          fi
           
           # 从描述文件提取 entitlements
           security cms -D -i /tmp/profile.mobileprovision > /tmp/profile.plist

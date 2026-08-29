@@ -68,16 +68,10 @@ if File.exist?(File.join('ios', main_entitlements))
   end
 end
 
-# 嵌入 Widget 到主应用（标准方式：添加依赖 + Embed App Extensions）
+# 只添加 target 依赖（主应用构建时会先构建 Widget），不添加嵌入 phase
+# 嵌入在构建脚本中手动处理，避免 Xcode 26 的循环依赖问题
 widget_product = widget_target.product_reference
 main_target.add_dependency(widget_target)
-
-# Widget Extension 必须进入 PlugIns 目录，放进 Frameworks phase 会导致系统找不到小组件。
-embed_phase = main_target.copy_files_build_phases.find { |phase| phase.name == 'Embed App Extensions' }
-embed_phase ||= main_target.new_copy_files_build_phase('Embed App Extensions')
-embed_phase.dst_subfolder_spec = '13'
-build_file = embed_phase.add_file_reference(widget_product)
-build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy', 'CodeSignOnCopy'] }
 
 project.save
 puts existing ? "Widget Extension repaired successfully!" : "Widget Extension added successfully!"
