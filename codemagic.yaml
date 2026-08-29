@@ -68,20 +68,23 @@ workflows:
           APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/Runner.app"
           WIDGET_PATH="build/ios-derived/Build/Products/Release-iphoneos/ScheduleWidget.appex"
           
-          # 手动嵌入 Widget Extension 到 PlugIns（避免 Xcode 26 循环依赖）
-          if [ -d "$WIDGET_PATH" ]; then
+          # 默认不嵌入 Widget（避免签名问题导致安装失败）
+          # 设置环境变量 INCLUDE_WIDGET=true 才嵌入
+          if [ "${INCLUDE_WIDGET:-false}" = "true" ] && [ -d "$WIDGET_PATH" ]; then
             mkdir -p "$APP_PATH/PlugIns"
             cp -r "$WIDGET_PATH" "$APP_PATH/PlugIns/"
             echo "Widget embedded to PlugIns"
           else
-            echo "WARNING: ScheduleWidget.appex not found at $WIDGET_PATH"
-            ls -la build/ios-derived/Build/Products/Release-iphoneos/ | head -20
+            echo "Skipping widget (INCLUDE_WIDGET=${INCLUDE_WIDGET:-false})"
+            rm -rf "$APP_PATH/PlugIns"
           fi
           
           # 从描述文件提取 entitlements
           security cms -D -i /tmp/profile.mobileprovision > /tmp/profile.plist
           plutil -extract Entitlements xml1 -o /tmp/entitlements.plist /tmp/profile.plist
-          echo "Entitlements extracted"
+          echo "=== Entitlements ==="
+          cat /tmp/entitlements.plist
+          echo "===================="
           
           # 嵌入描述文件
           cp /tmp/profile.mobileprovision "$APP_PATH/embedded.mobileprovision"
@@ -93,27 +96,24 @@ workflows:
           find "$APP_PATH/Frameworks" -name "*.framework" -type d | while read fw; do
             codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" "$fw"
           done
-          # 签名 Widget Extension（失败则移除，确保主应用能安装）
+          
+          # 签名 Widget（如果存在）
           if [ -d "$APP_PATH/PlugIns" ]; then
             find "$APP_PATH/PlugIns" -name "*.appex" -type d | while read appex; do
               echo "Signing widget: $appex"
               cp /tmp/profile.mobileprovision "$appex/embedded.mobileprovision"
-              if [ -f "ios/Widget/ScheduleWidget.entitlements" ]; then
-                codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements ios/Widget/ScheduleWidget.entitlements "$appex" 2>&1 || {
-                  echo "WARNING: Widget sign failed, removing widget"
-                  rm -rf "$appex"
-                }
-              else
-                echo "WARNING: Widget entitlements not found, removing widget"
-                rm -rf "$appex"
-              fi
+              codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements /tmp/entitlements.plist "$appex"
             done
           fi
-          # 再签名主 app，带 entitlements
+          
+          # 签名主 app
           codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements /tmp/entitlements.plist "$APP_PATH"
           
-          echo "Signed successfully"
-          codesign -dv "$APP_PATH" 2>&1 | head -5
+          echo "=== Signature verify ==="
+          codesign -dv "$APP_PATH" 2>&1 || echo "WARNING: verify failed"
+          echo "=== App contents ==="
+          ls -la "$APP_PATH/"
+          echo "======================"
           
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
