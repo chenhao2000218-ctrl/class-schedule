@@ -4,6 +4,7 @@ import '../providers/app_state.dart';
 import '../services/update_service.dart';
 import '../widgets/week_timetable.dart';
 import '../widgets/glass_widgets.dart';
+import '../widgets/liquid_bottom_tabs.dart';
 import 'day_detail_screen.dart';
 import 'exam_screen.dart';
 import 'settings_screen.dart';
@@ -98,107 +99,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 底部导航栏：胶囊形选中指示器平滑滑动
+  /// 底部导航栏：液态玻璃（阻尼拖拽+按压变形+速度形变+色差折射）
   Widget _buildBottomBar() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    const tabCount = 3;
-    const inset = 3.0; // 统一内缩（约1mm）
-
-    return GlassPillBar(
-      padding: const EdgeInsets.symmetric(
-        horizontal: inset,
-        vertical: inset,
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final tabWidth = constraints.maxWidth / tabCount;
-          const indicatorHeight = 60.0;
-
-          return SizedBox(
-            height: indicatorHeight,
-            child: Stack(
-              children: [
-                // 蓝色胶囊选中指示器 - 平滑滑动
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  left: _currentIndex * tabWidth,
-                  top: 0,
-                  width: tabWidth,
-                  child: Container(
-                    height: indicatorHeight,
-                    alignment: Alignment.center,
-                    child: Container(
-                      width: tabWidth - inset * 2,
-                      height: indicatorHeight,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withOpacity(0.18)
-                            : const Color(0xFF007AFF).withOpacity(0.15),
-                        // 完全胶囊圆角 = 高度/2，与底栏形状一致
-                        borderRadius:
-                            BorderRadius.circular(indicatorHeight / 2),
-                      ),
-                    ),
-                  ),
-                ),
-                // Tab 按钮层
-                Row(
-                  children: [
-                    _buildTabItem(0, Icons.calendar_today, '课表', tabWidth),
-                    _buildTabItem(1, Icons.assignment, '考试', tabWidth),
-                    _buildTabItem(
-                        2, Icons.settings_outlined, '设置', tabWidth),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTabItem(
-      int index, IconData icon, String label, double tabWidth) {
-    final isSelected = _currentIndex == index;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _switchTab(index),
-      child: SizedBox(
-        width: tabWidth,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedScale(
-              scale: isSelected ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              child: Icon(
-                icon,
-                size: 22,
-                color: isSelected
-                    ? (isDark ? Colors.white : const Color(0xFF007AFF))
-                    : Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 3),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected
-                    ? (isDark ? Colors.white : const Color(0xFF007AFF))
-                    : Colors.grey,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-              child: Text(label),
-            ),
-          ],
-        ),
-      ),
+    return LiquidBottomTabs(
+      currentIndex: _currentIndex,
+      onTabSelected: _switchTab,
+      tabs: const [
+        BottomTabItem(icon: Icons.calendar_today, label: '课表'),
+        BottomTabItem(icon: Icons.assignment, label: '考试'),
+        BottomTabItem(icon: Icons.settings_outlined, label: '设置'),
+      ],
     );
   }
 }

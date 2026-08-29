@@ -1,8 +1,9 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import '../services/sensor_service.dart';
 
-/// 液态玻璃组件 - BackdropFilter 模糊 + 自定义 shader 边缘折射
-/// Flutter 3.24 兼容版本（无 AnimatedSampler）
+/// 液态玻璃组件 - BackdropFilter 模糊 + 自定义 shader 边缘折射 + 内阴影 + 动态高光
 
 // 缓存 shader program
 ui.FragmentProgram? _cachedProgram;
@@ -44,7 +45,6 @@ class _GlassRefractionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (shader == null) return;
-    // uniform: 0,1=size, 2=displacementScale, 3=aberration, 4=edgeWidth, 5=time
     shader!.setFloat(0, size.width);
     shader!.setFloat(1, size.height);
     shader!.setFloat(2, displacementScale);
@@ -65,6 +65,53 @@ class _GlassRefractionPainter extends CustomPainter {
       old.time != time;
 }
 
+/// 内阴影绘制器
+class _InnerShadowPainter extends CustomPainter {
+  final double radius;
+  final double alpha;
+  final Color color;
+
+  _InnerShadowPainter({
+    required this.radius,
+    required this.alpha,
+    this.color = Colors.black,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (alpha <= 0) return;
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+
+    // 内阴影：用保存图层 + 模糊实现
+    canvas.saveLayer(rect, Paint());
+    canvas.drawRRect(
+      rrect,
+      Paint()..color = color.withOpacity(alpha),
+    );
+    // 用 dstIn 混合模式只保留边缘
+    final innerRect = rect.deflate(2);
+    final innerRRect = RRect.fromRectAndRadius(
+      innerRect,
+      Radius.circular(radius - 2 > 0 ? radius - 2 : 0),
+    );
+    canvas.drawRRect(
+      innerRRect,
+      Paint()
+        ..blendMode = BlendMode.dstOut
+        ..color = Colors.white,
+    );
+    // 模糊边缘
+    final blurPaint = Paint()
+      ..imageFilter = ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _InnerShadowPainter old) =>
+      old.radius != radius || old.alpha != alpha;
+}
+
 /// 液态玻璃容器
 class LiquidGlassContainer extends StatefulWidget {
   final Widget child;
@@ -77,6 +124,9 @@ class LiquidGlassContainer extends StatefulWidget {
   final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
   final bool interactive;
+  final bool enableInnerShadow;
+  final bool enableDynamicHighlight;
+  final double innerShadowAlpha;
 
   const LiquidGlassContainer({
     super.key,
@@ -90,6 +140,9 @@ class LiquidGlassContainer extends StatefulWidget {
     this.margin,
     this.onTap,
     this.interactive = true,
+    this.enableInnerShadow = true,
+    this.enableDynamicHighlight = true,
+    this.innerShadowAlpha = 0.15,
   });
 
   @override
@@ -101,8 +154,12 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
   ui.FragmentProgram? _program;
   bool _hovered = false;
   bool _pressed = false;
-  Offset _mousePos = Offset.zero;
   late final AnimationController _timeController;
+
+  // 动态高光
+  double _tiltX = 0;
+  double _tiltY = 0;
+  void Function(double, double)? _sensorListener;
 
   @override
   void initState() {
@@ -114,25 +171,47 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
     _loadProgram().then((p) {
       if (mounted) setState(() => _program = p);
     });
+
+    // 动态高光：监听传感器
+    if (widget.enableDynamicHighlight) {
+      _sensorListener = (x, y) {
+        if (mounted) {
+          setState(() {
+            _tiltX = x;
+            _tiltY = y;
+          });
+        }
+      };
+      SensorService().addListener(_sensorListener!);
+    }
   }
 
   @override
   void dispose() {
     _timeController.dispose();
+    if (_sensorListener != null) {
+      SensorService().removeListener(_sensorListener!);
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final scale = _pressed ? 0.97 : (_hovered ? 1.02 : 1.0);
+    // 按压变形：按下时轻微放大
+    final scale = _pressed ? 0.96 : (_hovered ? 1.02 : 1.0);
+    final pressProgress = _pressed ? 1.0 : 0.0;
+
+    // 动态高光位置
+    final highlightX = 0.5 + _tiltX * 0.3;
+    final highlightY = 0.3 + _tiltY * 0.2;
 
     // 玻璃内容层
     Widget glassContent = ClipRRect(
       borderRadius: BorderRadius.circular(widget.borderRadius),
       child: Stack(
         children: [
-          // 第1层：背景模糊（填满）
+          // 第1层：背景模糊
           Positioned.fill(
             child: BackdropFilter(
               filter: ui.ImageFilter.blur(
@@ -146,7 +225,7 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
               ),
             ),
           ),
-          // 第2层：shader 边缘折射彩虹（填满）
+          // 第2层：shader 边缘折射彩虹
           if (_program != null)
             Positioned.fill(
               child: AnimatedBuilder(
@@ -165,12 +244,36 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
                 },
               ),
             ),
-          // 第3层：内容（决定 Stack 尺寸）
+          // 第3层：内阴影
+          if (widget.enableInnerShadow)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _InnerShadowPainter(
+                  radius: widget.borderRadius,
+                  alpha: widget.innerShadowAlpha * (0.5 + pressProgress * 0.5),
+                ),
+              ),
+            ),
+          // 第4层：动态高光（传感器驱动）
+          if (widget.enableDynamicHighlight)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _DynamicHighlightPainter(
+                    x: highlightX,
+                    y: highlightY,
+                    radius: widget.borderRadius,
+                    alpha: isDark ? 0.08 : 0.12,
+                  ),
+                ),
+              ),
+            ),
+          // 第5层：内容
           Padding(
             padding: widget.padding ?? EdgeInsets.zero,
             child: widget.child,
           ),
-          // 第4层：悬停高光
+          // 第6层：悬停高光
           if (widget.interactive && _hovered)
             Positioned.fill(
               child: IgnorePointer(
@@ -192,7 +295,7 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
       ),
     );
 
-    // 第5层：动态高光边框（在 ClipRRect 外面，用 Container decoration）
+    // 外层：边框 + 阴影
     Widget result = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -210,19 +313,6 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
             spreadRadius: -3,
           ),
         ],
-        gradient: _hovered
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withOpacity(0.0),
-                  Colors.white.withOpacity(0.08),
-                  Colors.white.withOpacity(0.18),
-                  Colors.white.withOpacity(0.0),
-                ],
-                stops: const [0.0, 0.33, 0.66, 1.0],
-              )
-            : null,
       ),
       child: glassContent,
     );
@@ -232,7 +322,6 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
       result = MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
-        onHover: (e) => setState(() => _mousePos = e.localPosition),
         child: GestureDetector(
           onTapDown: (_) => setState(() => _pressed = true),
           onTapUp: (_) => setState(() => _pressed = false),
@@ -253,6 +342,49 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
       ),
     );
   }
+}
+
+/// 动态高光绘制器
+class _DynamicHighlightPainter extends CustomPainter {
+  final double x;
+  final double y;
+  final double radius;
+  final double alpha;
+
+  _DynamicHighlightPainter({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.alpha,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * x, size.height * y);
+    final gradient = RadialGradient(
+      center: Alignment(
+        (x - 0.5) * 2,
+        (y - 0.5) * 2,
+      ),
+      radius: 0.8,
+      colors: [
+        Colors.white.withOpacity(alpha),
+        Colors.white.withOpacity(alpha * 0.3),
+        Colors.transparent,
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    );
+    final paint = Paint()..shader = gradient.createShader(Offset.zero & size);
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DynamicHighlightPainter old) =>
+      old.x != x || old.y != y || old.alpha != alpha;
 }
 
 /// 玻璃胶囊底栏
@@ -276,6 +408,7 @@ class GlassPillBar extends StatelessWidget {
       blurAmount: 12,
       padding: padding,
       interactive: false,
+      innerShadowAlpha: 0.1,
       child: child,
     );
   }
@@ -362,6 +495,116 @@ class GlassPillButton extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 液态玻璃开关（参考 Kyant0 LiquidToggle）
+class LiquidToggle extends StatefulWidget {
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final Color? activeColor;
+
+  const LiquidToggle({
+    super.key,
+    required this.value,
+    this.onChanged,
+    this.activeColor,
+  });
+
+  @override
+  State<LiquidToggle> createState() => _LiquidToggleState();
+}
+
+class _LiquidToggleState extends State<LiquidToggle>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      value: widget.value ? 1.0 : 0.0,
+    );
+  }
+
+  @override
+  void didUpdateWidget(LiquidToggle oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _controller.animateTo(widget.value ? 1.0 : 0.0,
+          curve: Curves.easeOutCubic);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = widget.activeColor ??
+        (isDark ? const Color(0xFF30D158) : const Color(0xFF34C759));
+    final trackColor = isDark
+        ? const Color(0xFF787880).withOpacity(0.36)
+        : const Color(0xFF787878).withOpacity(0.2);
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onChanged?.call(!widget.value);
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final fraction = _controller.value;
+          final thumbScale = _pressed ? 1.15 : 1.0;
+
+          return Container(
+            width: 52,
+            height: 32,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Color.lerp(trackColor, activeColor, fraction),
+            ),
+            child: Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                // 玻璃滑块
+                Transform.translate(
+                  offset: Offset(
+                    2 + fraction * 20,
+                    0,
+                  ),
+                  child: Transform.scale(
+                    scale: thumbScale,
+                    child: LiquidGlassContainer(
+                      borderRadius: 14,
+                      displacementScale: 8,
+                      aberration: 0.15,
+                      edgeWidth: 0.1,
+                      blurAmount: 6,
+                      interactive: false,
+                      enableInnerShadow: true,
+                      innerShadowAlpha: 0.08,
+                      padding: EdgeInsets.zero,
+                      child: const SizedBox(width: 28, height: 28),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../models/app_settings.dart';
 import '../services/backup_service.dart';
 import '../services/storage_service.dart';
 import '../services/update_service.dart';
+import '../widgets/glass_widgets.dart';
 import 'schedule_settings_screen.dart';
 import 'import_screen.dart';
 import 'theme_screen.dart';
@@ -273,7 +274,7 @@ class SettingsScreen extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w500)),
             ),
-            Switch(
+            LiquidToggle(
               value: value,
               onChanged: onChanged,
             ),

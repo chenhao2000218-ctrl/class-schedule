@@ -34,6 +34,8 @@ dependencies:
   http: ^1.1.0
   # 应用内更新（打开 OTA 安装链接）
   url_launcher: ^6.2.0
+  # 传感器（液态玻璃动态光效）
+  sensors_plus: ^4.0.0
 
 dev_dependencies:
   flutter_test:
