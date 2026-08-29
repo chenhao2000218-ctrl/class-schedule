@@ -9,11 +9,20 @@ struct WidgetCourse: Codable {
     let weekday: Int
     let startSection: Int
     let endSection: Int
+    let weeks: [Int]?
+    let weekType: Int?
     let colorIndex: Int
+}
+
+struct WidgetHoliday: Codable {
+    let date: String
+    let type: Int
+    let weekdayOverride: Int?
 }
 
 struct WidgetData: Codable {
     let courses: [WidgetCourse]
+    let holidays: [WidgetHoliday]?
     let currentWeek: Int
     let totalWeeks: Int
     let semesterStart: String // ISO8601
@@ -67,13 +76,43 @@ struct ScheduleProvider: TimelineProvider {
             return ScheduleEntry(date: Date(), courses: [], currentWeek: 1, timeSlots: [])
         }
 
-        // 计算今天是周几和第几周
+        // 计算今天是周几，并应用假期/调休
         let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date()) // 1=周日, 2=周一...
+        let today = Date()
+        let weekday = calendar.component(.weekday, from: today) // 1=周日, 2=周一...
         let weekdayIndex = weekday == 1 ? 7 : weekday - 1 // 转成 1=周一 ... 7=周日
+        let todayStart = calendar.startOfDay(for: today)
+
+        var effectiveWeekday = weekdayIndex
+        if let holidays = widgetData.holidays {
+            for holiday in holidays {
+                guard let date = ISO8601DateFormatter().date(from: holiday.date) else {
+                    continue
+                }
+                if calendar.isDate(calendar.startOfDay(for: date), inSameDayAs: todayStart) {
+                    if holiday.type == 0 {
+                        return ScheduleEntry(date: today, courses: [], currentWeek: widgetData.currentWeek, timeSlots: widgetData.timeSlots)
+                    }
+                    if holiday.type == 1, let override = holiday.weekdayOverride {
+                        effectiveWeekday = override
+                    }
+                }
+            }
+        }
 
         // 筛选今天的课程
-        let todayCourses = widgetData.courses.filter { $0.weekday == weekdayIndex }
+        let todayCourses = widgetData.courses.filter {
+            guard $0.weekday == effectiveWeekday else { return false }
+            guard $0.weeks?.contains(widgetData.currentWeek) ?? true else { return false }
+            switch $0.weekType ?? 0 {
+            case 1:
+                return widgetData.currentWeek % 2 == 1
+            case 2:
+                return widgetData.currentWeek % 2 == 0
+            default:
+                return true
+            }
+        }
 
         return ScheduleEntry(
             date: Date(),

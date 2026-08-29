@@ -231,6 +231,7 @@ class AppState extends ChangeNotifier {
     await _notifications.scheduleExamReminders(_exams);
     await _widgetService.updateWidgetData(
       _courses,
+      _holidays,
       _settings.timeSlots,
       _settings,
       currentWeek: _currentWeek,

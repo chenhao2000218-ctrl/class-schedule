@@ -4,6 +4,35 @@ import 'constants.dart';
 /// iOS 原生风格主题系统
 /// 遵循 Apple Human Interface Guidelines + Liquid Glass 设计语言
 class AppTheme {
+  static const _fontFallback = <String>[
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Noto Sans CJK SC',
+    'Noto Sans SC',
+    'Source Han Sans SC',
+    'sans-serif',
+  ];
+
+  static const _baseTextTheme = TextTheme(
+    bodyLarge: TextStyle(fontSize: 17, fontFamilyFallback: _fontFallback),
+    bodyMedium: TextStyle(fontSize: 15, fontFamilyFallback: _fontFallback),
+    titleLarge: TextStyle(
+      fontSize: 28,
+      fontWeight: FontWeight.w700,
+      fontFamilyFallback: _fontFallback,
+    ),
+    titleMedium: TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+      fontFamilyFallback: _fontFallback,
+    ),
+    titleSmall: TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w600,
+      fontFamilyFallback: _fontFallback,
+    ),
+  );
+
   /// 浅色主题
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(
@@ -13,6 +42,7 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      fontFamilyFallback: _fontFallback,
       colorScheme: scheme,
       scaffoldBackgroundColor: const Color(0xFFF2F2F7), // iOS 分组背景
       appBarTheme: AppBarTheme(
@@ -97,12 +127,9 @@ class AppTheme {
         color: Color(0xFFE5E5EA),
         thickness: 0.5,
       ),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(fontSize: 17, letterSpacing: -0.2),
-        bodyMedium: TextStyle(fontSize: 15, letterSpacing: -0.1),
-        titleLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5),
-        titleMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: -0.3),
-        titleSmall: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+      textTheme: _baseTextTheme.apply(
+        bodyColor: Colors.black,
+        displayColor: Colors.black,
       ),
     );
   }
@@ -116,6 +143,7 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      fontFamilyFallback: _fontFallback,
       colorScheme: scheme,
       scaffoldBackgroundColor: const Color(0xFF000000), // iOS 深色纯黑
       appBarTheme: AppBarTheme(
@@ -197,12 +225,9 @@ class AppTheme {
         color: Color(0xFF38383A),
         thickness: 0.5,
       ),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(fontSize: 17, color: Colors.white),
-        bodyMedium: TextStyle(fontSize: 15, color: Colors.white70),
-        titleLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white),
-        titleMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
-        titleSmall: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white),
+      textTheme: _baseTextTheme.apply(
+        bodyColor: Colors.white,
+        displayColor: Colors.white,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import '../models/course.dart';
+import '../models/holiday.dart';
 import '../models/time_slot.dart';
 import '../models/app_settings.dart';
 
@@ -16,6 +17,7 @@ class WidgetService {
   /// 在课表数据变化时调用
   Future<void> updateWidgetData(
     List<Course> courses,
+    List<Holiday> holidays,
     List<TimeSlot> timeSlots,
     AppSettings settings, {
     int currentWeek = 1,
@@ -30,7 +32,16 @@ class WidgetService {
                   'weekday': c.weekday,
                   'startSection': c.startSection,
                   'endSection': c.endSection,
+                  'weeks': c.weeks,
+                  'weekType': c.weekType.index,
                   'colorIndex': c.colorIndex,
+                })
+            .toList(),
+        'holidays': holidays
+            .map((h) => {
+                  'date': h.date.toIso8601String(),
+                  'type': h.type.index,
+                  'weekdayOverride': h.weekdayOverride,
                 })
             .toList(),
         'currentWeek': currentWeek,

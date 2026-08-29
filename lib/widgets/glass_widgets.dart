@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import '../services/sensor_service.dart';
 
 /// 液态玻璃组件 - BackdropFilter 模糊 + 自定义 shader 边缘折射 + 内阴影 + 动态高光
@@ -101,9 +100,6 @@ class _InnerShadowPainter extends CustomPainter {
         ..blendMode = BlendMode.dstOut
         ..color = Colors.white,
     );
-    // 模糊边缘
-    final blurPaint = Paint()
-      ..imageFilter = ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4);
     canvas.restore();
   }
 
@@ -126,6 +122,7 @@ class LiquidGlassContainer extends StatefulWidget {
   final bool interactive;
   final bool enableInnerShadow;
   final bool enableDynamicHighlight;
+  final bool enableRefraction;
   final double innerShadowAlpha;
 
   const LiquidGlassContainer({
@@ -142,6 +139,7 @@ class LiquidGlassContainer extends StatefulWidget {
     this.interactive = true,
     this.enableInnerShadow = true,
     this.enableDynamicHighlight = true,
+    this.enableRefraction = false,
     this.innerShadowAlpha = 0.15,
   });
 
@@ -168,9 +166,11 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
       vsync: this,
       duration: const Duration(seconds: 10),
     )..repeat();
-    _loadProgram().then((p) {
-      if (mounted) setState(() => _program = p);
-    });
+    if (widget.enableRefraction) {
+      _loadProgram().then((p) {
+        if (mounted) setState(() => _program = p);
+      });
+    }
 
     // 动态高光：监听传感器
     if (widget.enableDynamicHighlight) {
@@ -226,7 +226,7 @@ class _LiquidGlassContainerState extends State<LiquidGlassContainer>
             ),
           ),
           // 第2层：shader 边缘折射彩虹
-          if (_program != null)
+          if (widget.enableRefraction && _program != null)
             Positioned.fill(
               child: AnimatedBuilder(
                 animation: _timeController,
@@ -360,7 +360,6 @@ class _DynamicHighlightPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * x, size.height * y);
     final gradient = RadialGradient(
       center: Alignment(
         (x - 0.5) * 2,

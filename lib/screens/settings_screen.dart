@@ -5,16 +5,12 @@ import '../models/app_settings.dart';
 import '../services/backup_service.dart';
 import '../services/storage_service.dart';
 import '../services/update_service.dart';
+import '../utils/app_version.dart';
 import '../widgets/glass_widgets.dart';
 import 'schedule_settings_screen.dart';
 import 'import_screen.dart';
 import 'theme_screen.dart';
 import 'holiday_screen.dart';
-
-// 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.6';
-// 显示用版本号
-String get _displayVersion => _currentVersion;
 
 /// 设置页面 - iOS 分组列表风格
 class SettingsScreen extends StatelessWidget {
@@ -156,13 +152,13 @@ class SettingsScreen extends StatelessWidget {
                 _buildNavigationRow(
                   icon: Icons.system_update,
                   title: '检查更新',
-                  subtitle: '当前版本 v$_displayVersion',
+                  subtitle: '当前版本 v$currentAppVersionName',
                   onTap: () async {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('正在检查更新...')),
                     );
                     final info =
-                        await UpdateService.checkUpdate(_currentVersion);
+                        await UpdateService.checkUpdate(currentAppVersion);
                     if (context.mounted) {
                       if (info != null) {
                         showUpdateBanner(context, info);

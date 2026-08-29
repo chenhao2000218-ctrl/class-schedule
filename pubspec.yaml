@@ -1,7 +1,7 @@
 name: class_schedule
 description: 纯净无广告的大学课程表 App
 publish_to: 'none'
-version: 1.0.6
+version: 1.0.6+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,6 +9,8 @@ environment:
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.6
   # 状态管理

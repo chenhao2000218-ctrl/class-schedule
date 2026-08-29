@@ -82,6 +82,13 @@ workflows:
           find "$APP_PATH/Frameworks" -name "*.framework" -type d | while read fw; do
             codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" "$fw"
           done
+          # 再签名并嵌入 Widget Extension。Widget 必须位于 Runner.app/PlugIns，且 appex 自身也要签名。
+          if [ -d "$APP_PATH/PlugIns" ]; then
+            find "$APP_PATH/PlugIns" -name "*.appex" -type d | while read appex; do
+              cp /tmp/profile.mobileprovision "$appex/embedded.mobileprovision"
+              codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements ios/Widget/ScheduleWidget.entitlements "$appex"
+            done
+          fi
           # 再签名主 app，带 entitlements
           codesign -f -s "Apple Distribution: Alice Hobler (6M5UL7G6A7)" --entitlements /tmp/entitlements.plist "$APP_PATH"
           

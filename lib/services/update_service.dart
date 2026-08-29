@@ -50,7 +50,8 @@ class UpdateService {
   /// 触发 OTA 安装
   /// 跳转到 Safari 打开 itms-services:// 链接
   static Future<bool> installUpdate(String manifestUrl) async {
-    final url = 'itms-services://?action=download-manifest&url=$manifestUrl';
+    final url =
+        'itms-services://?action=download-manifest&url=${Uri.encodeComponent(manifestUrl)}';
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       return await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -94,6 +95,8 @@ class UpdateInfo {
     required this.changelog,
     required this.manifestUrl,
   });
+
+  String get displayVersion => '$version+$buildNumber';
 }
 
 /// 显示更新提示（顶部柔和横幅，不打断操作）
@@ -165,7 +168,7 @@ void showUpdateBanner(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '发现新版本 v${info.version}',
+                              '发现新版本 v${info.displayVersion}',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,

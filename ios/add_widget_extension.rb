@@ -14,18 +14,12 @@ main_target = project.targets.find { |t| t.name == 'Runner' }
 
 # 检查是否已存在 Widget target
 existing = project.targets.find { |t| t.name == 'ScheduleWidget' }
-if existing
-  puts "Widget target already exists, skipping"
-  exit 0
-end
-
-# 创建 Widget Extension target
-widget_target = project.new_target(:app_extension, 'ScheduleWidget', :ios, '16.0')
+widget_target = existing || project.new_target(:app_extension, 'ScheduleWidget', :ios, '16.0')
 widget_target.product_name = 'ScheduleWidget'
 
 # 添加 Widget 源文件
 Dir.glob(File.join(widget_dir, '*.swift')).each do |file|
-  file_ref = project.main_group.new_file(file)
+  file_ref = project.files.find { |ref| ref.path == file } || project.main_group.new_file(file)
   widget_target.add_file_references([file_ref])
 end
 
@@ -36,15 +30,17 @@ widget_target.build_configurations.each do |config|
   config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['TARGETED_DEVICE_FAMILY'] = '1,2'
-  config.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
-  config.build_settings['INFOPLIST_KEY_CFBundleDisplayName'] = '课程表'
+  config.build_settings['GENERATE_INFOPLIST_FILE'] = 'NO'
+  config.build_settings['INFOPLIST_FILE'] = 'Widget/Info.plist'
   config.build_settings['WRAPPER_EXTENSION'] = 'appex'
   config.build_settings['SKIP_INSTALL'] = 'YES'
+  config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
 end
 
-# 创建 Widget entitlements
+# 确保 Widget entitlements 存在
 widget_entitlements = 'Widget/ScheduleWidget.entitlements'
-File.write(File.join('ios', widget_entitlements), <<~PLIST)
+unless File.exist?(File.join('ios', widget_entitlements))
+  File.write(File.join('ios', widget_entitlements), <<~PLIST)
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -56,6 +52,7 @@ File.write(File.join('ios', widget_entitlements), <<~PLIST)
 </dict>
 </plist>
 PLIST
+end
 
 # 添加 entitlements 到 Widget target
 entitlements_ref = project.main_group.new_file(widget_entitlements)
@@ -71,17 +68,19 @@ if File.exist?(File.join('ios', main_entitlements))
   end
 end
 
-# 嵌入 Widget 到主应用（标准方式：添加依赖 + Frameworks phase）
+# 嵌入 Widget 到主应用（标准方式：添加依赖 + Embed App Extensions）
 widget_product = widget_target.product_reference
 main_target.add_dependency(widget_target)
 
-# 添加到 Frameworks build phase（自动嵌入到 PlugIns）
-frameworks_phase = main_target.frameworks_build_phase
-build_file = frameworks_phase.add_file_reference(widget_product)
+# Widget Extension 必须进入 PlugIns 目录，放进 Frameworks phase 会导致系统找不到小组件。
+embed_phase = main_target.copy_files_build_phases.find { |phase| phase.name == 'Embed App Extensions' }
+embed_phase ||= main_target.new_copy_files_build_phase('Embed App Extensions')
+embed_phase.dst_subfolder_spec = '13'
+build_file = embed_phase.add_file_reference(widget_product)
 build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy', 'CodeSignOnCopy'] }
 
 project.save
-puts "Widget Extension added successfully!"
+puts existing ? "Widget Extension repaired successfully!" : "Widget Extension added successfully!"
 puts "Widget target: #{widget_target.name}"
 puts "Bundle ID: com.example.classSchedule.ScheduleWidget"
 puts "App Group: group.com.example.classSchedule"

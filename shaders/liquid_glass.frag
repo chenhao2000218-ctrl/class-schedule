@@ -78,16 +78,16 @@ void main() {
   // 色差强度控制
   rainbow = mix(vec3(1.0), rainbow, aberration * edgeMask);
 
-  // 边缘亮度增强
-  float edgeBrightness = edgeMask * (0.15 + 0.1 * sin(time * 2.0 + n * 6.28));
+  // 边缘亮度增强。保持克制，避免形成可见的白色流动贴图。
+  float edgeBrightness = edgeMask * (0.035 + 0.015 * sin(time * 2.0 + n * 6.28));
 
-  // 最终颜色：白色基调 + 彩虹折射 + 边缘高光
-  vec3 color = vec3(1.0) * 0.08; // 基础白色半透明
-  color += rainbow * edgeMask * 0.12 * displacementScale * 0.02;
+  // 最终颜色：只在边缘产生极弱折射，中心保持完全透明。
+  vec3 color = vec3(0.0);
+  color += rainbow * edgeMask * 0.04 * displacementScale * 0.02;
   color += vec3(1.0) * edgeBrightness;
 
-  // 透明度：边缘不透明，中心透明
-  float alpha = edgeMask * 0.6 + 0.05;
+  // 透明度：中心为 0，避免盖住中文文字或控件内容。
+  float alpha = edgeMask * 0.18;
 
   fragColor = vec4(color, alpha);
 }

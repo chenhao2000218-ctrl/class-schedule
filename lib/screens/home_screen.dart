@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/update_service.dart';
+import '../utils/app_version.dart';
 import '../widgets/week_timetable.dart';
 import '../widgets/glass_widgets.dart';
 import '../widgets/liquid_bottom_tabs.dart';
@@ -9,11 +10,6 @@ import 'day_detail_screen.dart';
 import 'exam_screen.dart';
 import 'settings_screen.dart';
 import 'course_edit_screen.dart';
-
-// 当前应用版本（与 pubspec.yaml 保持一致）
-const String _currentVersion = '1.0.6';
-// 显示用版本号
-String get _displayVersion => _currentVersion;
 
 /// 主界面：悬浮胶囊玻璃底栏 + 平滑切换动画
 class HomeScreen extends StatefulWidget {
@@ -41,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkUpdate() async {
-    final info = await UpdateService.checkUpdate(_currentVersion);
+    final info = await UpdateService.checkUpdate(currentAppVersion);
     if (info != null && mounted) {
       showUpdateBanner(context, info);
     }
